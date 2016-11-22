@@ -6,7 +6,7 @@ typedef unsigned int uint;
 
 
 struct token {
-    uint  type;
+    uint type;
     char* text;
 
     /* token type identifier constants, sequentially defined starting

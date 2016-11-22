@@ -37,21 +37,20 @@ namespace pdx {
                 return;
             }
 
-            vec.emplace_back();
-            stmt& stmt = vec.back();
+            obj k;
 
             if (tok.type == token::STR) {
-                stmt.key.data.s = strdup( tok.text );
+                k.data.s = strdup( tok.text );
             }
             else if (tok.type == token::DATE) {
-                stmt.key.type = obj::DATE;
-                stmt.key.data.s = strdup( tok.text );
+                k.type = obj::DATE;
+                k.data.s = strdup( tok.text );
                 // FIXME: new date encoder plz
                 //stmt.key.store_date_from_str(tok.text);
             }
             else if (tok.type == token::INTEGER) {
-                stmt.key.type = obj::INTEGER;
-                stmt.key.data.i = atoi( tok.text );
+                k.type = obj::INTEGER;
+                k.data.i = atoi( tok.text );
             }
             else
                 lex.unexpected_token(tok);
@@ -61,6 +60,7 @@ namespace pdx {
             lex.next_expected(&tok, token::EQ);
 
             /* on to value... */
+            obj v;
             lex.next(&tok);
 
             if (tok.type == token::OPEN) {
@@ -74,8 +74,8 @@ namespace pdx {
                 if (tok.type == token::CLOSE) {
                     /* empty block */
 
-                    stmt.val.type = obj::BLOCK;
-                    stmt.val.data.p_block = &EMPTY_BLOCK;
+                    v.type = obj::BLOCK;
+                    v.data.p_block = &EMPTY_BLOCK;
 
                     continue;
                 }
@@ -96,37 +96,39 @@ namespace pdx {
                 if (tok.type != token::EQ || double_open) {
 
                     /* by God, this is (probably) a list! */
-                    stmt.val.type = obj::LIST;
-                    stmt.val.data.p_list = new list(lex);
+                    v.type = obj::LIST;
+                    v.data.p_list = new list(lex);
                 }
                 else {
                     /* presumably a block */
 
                     /* time to recurse ... */
-                    stmt.val.type = obj::BLOCK;
-                    stmt.val.data.p_block = new block(lex);
+                    v.type = obj::BLOCK;
+                    v.p_block = new block(lex);
                 }
 
                 /* ... will handle its own closing brace */
             }
             else if (tok.type == token::STR || tok.type == token::QSTR) {
-                stmt.val.data.s = strdup( tok.text );
+                v.data.s = strdup( tok.text );
             }
             else if (tok.type == token::QDATE || tok.type == token::DATE) {
                 /* for savegames, otherwise only on LHS (and never quoted) */
-                stmt.val.type = obj::DATE;
-                stmt.val.data.s = strdup( tok.text ); // FIXME: new date encoder plz
+                v.type = obj::DATE;
+                v.data.s = strdup( tok.text ); // FIXME: new date encoder plz
             }
             else if (tok.type == token::INTEGER) {
-                stmt.val.type = obj::INTEGER;
-                stmt.val.data.i = atoi( tok.text );
+                v.type = obj::INTEGER;
+                v.data.i = atoi( tok.text );
             }
             else if (tok.type == token::DECIMAL) {
-                stmt.val.type = obj::DECIMAL;
-                stmt.val.data.s = strdup( tok.text );
+                v.type = obj::DECIMAL;
+                v.data.s = strdup( tok.text );
             }
             else
                 lex.unexpected_token(tok);
+
+            vec.emplace_back(k, v);
         }
     }
 
@@ -167,7 +169,7 @@ namespace pdx {
         else if (type == LIST) {
             fprintf(f, "{ ");
 
-            for (auto&& o : *as_list()) {
+            for (auto&& o : *this->as_list()) {
                     o.print(f, indent);
                     fprintf(f, " ");
             }

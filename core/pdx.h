@@ -66,7 +66,8 @@ namespace pdx {
             date date;
         } data;
 
-        obj() : type(STRING) {}
+        obj() : type(STRING) { data.s = 0; }
+
 
         /* accessors (unchecked type) */
         char*  as_c_str()   const noexcept { return data.s; }
@@ -95,6 +96,9 @@ namespace pdx {
         obj key;
         obj val;
 
+        stmt() = delete;
+        stmt(obj k, obj v) : key(k), val(v) {}
+
         bool key_eq(const char* s) const noexcept {
             return (key.type == obj::STRING && strcmp(key.as_c_str(), s) == 0);
         }
@@ -114,7 +118,7 @@ namespace pdx {
     private:
         struct saved_token : public token {
             char buf[128];
-            saved_token() : token(0, &buf[0]) { }
+            saved_token() : token(token::END, &buf[0]) { }
         };
 
         enum {
