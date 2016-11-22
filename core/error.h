@@ -1,7 +1,6 @@
 // -*- c++ -*-
 
-#ifndef _MDH_ERROR_H_
-#define _MDH_ERROR_H_
+#pragma once
 
 #include <exception>
 #include <stdexcept>
@@ -10,27 +9,19 @@
 #include <cstdlib>
 
 class va_error : public std::exception {
-  char msg[512];
+    char msg[512];
 
 public:
-  explicit va_error(const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    int n = vsnprintf(&msg[0], sizeof(msg), format, vl);
-    va_end(vl);
+    explicit va_error(const char* format, ...) {
+        va_list vl;
+        va_start(vl, format);
+        int n = vsnprintf(&msg[0], sizeof(msg), format, vl);
+        va_end(vl);
+    }
 
-    if (n < 0)
-      throw std::runtime_error("va_error: vsnprintf");
-  }
+    const char* what() const noexcept {
+        return msg;
+    }
 
-  const char* what() const throw() {
-    return msg;
-  }
-
-  ~va_error() throw() {
-  }
+    ~va_error() noexcept {}
 };
-
-
-#endif
-
