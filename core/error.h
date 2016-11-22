@@ -15,7 +15,7 @@ public:
     explicit va_error(const char* format, ...) {
         va_list vl;
         va_start(vl, format);
-        int n = vsnprintf(&msg[0], sizeof(msg), format, vl);
+        vsnprintf(&msg[0], sizeof(msg), format, vl);
         va_end(vl);
     }
 

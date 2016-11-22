@@ -21,7 +21,6 @@ lexer::lexer(const char* filename)
 
 
 bool lexer::next(token* p_tok) {
-
     uint type;
 
     if (( type = yylex() ) == 0) {
@@ -35,9 +34,9 @@ bool lexer::next(token* p_tok) {
     }
 
     /* yytext contains token,
-         yyleng contains token length,
-         yylineno contains line number,
-         type contains token ID */
+       yyleng contains token length,
+       yylineno contains line number,
+       type contains token ID */
 
     _line = yylineno;
     p_tok->type = type;
@@ -55,9 +54,9 @@ bool lexer::next(token* p_tok) {
         p_tok->text = yytext;
     }
 
-    if (type == token::COMMENT) {
-        /* if found, strip any trailing '\r' */
+    /* if found, strip any trailing '\r' */
 
+    if (yyleng > 0) {
         char* last = &yytext[ yyleng-1 ];
 
         if (*last == '\r')

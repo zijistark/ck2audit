@@ -1,7 +1,6 @@
 // -*- c++ -*-
 
-#ifndef _MDH_MOD_VFS_H_
-#define _MDH_MOD_VFS_H_
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -22,7 +21,7 @@ public:
     bool resolve_path(fs::path* p_real_path, const fs::path& virtual_path) const {
         /* search path vector for a filesystem hit in reverse */
         for (auto i = _path_stack.crbegin(); i != _path_stack.crend(); ++i)
-            if (fs::exists( *p_real_path = *i / virtual_path.native() ))
+            if (fs::exists( *p_real_path = *i / virtual_path ))
                 return true;
         return false;
     }
@@ -48,6 +47,3 @@ public:
     fs::path operator[](const std::string& virtual_path) const { return (*this)[fs::path(virtual_path)]; }
     fs::path operator[](const char* virtual_path) const        { return (*this)[fs::path(virtual_path)]; }
 };
-
-
-#endif

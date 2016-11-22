@@ -3,7 +3,7 @@
 
 const char* token::TYPE_MAP[] = {
     "EOF",
-    "INT",
+    "INTEGER",
     "EQ",
     "OPEN",
     "CLOSE",
@@ -12,6 +12,6 @@ const char* token::TYPE_MAP[] = {
     "DATE",
     "QDATE",
     "COMMENT",
-    "FLOAT",
+    "DECIMAL",
     "FAIL",
 };

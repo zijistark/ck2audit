@@ -1,3 +1,6 @@
+# SCons DB
+*.sconsign.*
+
 # Compiled Object files
 *.slo
 *.lo

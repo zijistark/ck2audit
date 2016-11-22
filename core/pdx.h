@@ -21,9 +21,9 @@ namespace pdx {
 #pragma pack(push, 1)
 
     struct date {
-        uint16_t y;
-        uint8_t  m;
-        uint8_t  d;
+        int16_t y;
+        int8_t  m;
+        int8_t  d;
 
         bool operator<(date e) const noexcept {
             /* note that since our binary representation is simpy a 32-bit unsigned integer
@@ -39,15 +39,23 @@ namespace pdx {
             return false;
         }
 
-        uint16_t year()  const noexcept { return y; }
-        uint8_t  month() const noexcept { return m; }
-        uint8_t  day()   const noexcept { return d; }
+        int16_t year()  const noexcept { return y; }
+        int8_t  month() const noexcept { return m; }
+        int8_t  day()   const noexcept { return d; }
     };
 
 #pragma pack(pop)
 
     struct obj {
-        uint type;
+        enum {
+            STRING = 0,
+            KEYWORD,
+            INTEGER,
+            DECIMAL, // currently implemented as a string
+            DATE,
+            BLOCK,
+            LIST
+        } type;
 
         union {
             char* s;
@@ -55,47 +63,25 @@ namespace pdx {
             int i;
             block* p_block;
             list* p_list;
-            struct {
-                uint8_t r;
-                uint8_t g;
-                uint8_t b;
-            } color;
             date date;
         } data;
 
-        static const uint STR     = 0;
-        static const uint KEYWORD = 1;
-        static const uint INT     = 2;
-        static const uint DECIMAL = 3;
-        static const uint DATE    = 4;
-        static const uint COLOR   = 5;
-        static const uint TITLE   = 6;
-        static const uint BLOCK   = 7;
-        static const uint LIST    = 8;
+        obj() : type(STRING) {}
 
-        obj() : type(STR) {}
+        /* accessors (unchecked type) */
+        char*  as_c_str()   const noexcept { return data.s; }
+        uint   as_keyword() const noexcept { return data.id; }
+        int    as_integer() const noexcept { return data.i; }
+        char*  as_decimal() const noexcept { return data.s; }
+        block* as_block()   const noexcept { return data.p_block; }
+        list*  as_list()    const noexcept { return data.p_list; }
+        date   as_date()    const noexcept { return data.date; }
 
-        /* more readable accessors (silently-checked type) */
-        char*  as_c_str()   const noexcept { assert(type == STR);   return data.s; }
-        int    as_integer() const noexcept { assert(type == INT);   return data.i; }
-        char*  as_title()   const noexcept { assert(type == TITLE); return data.s; }
-        block* as_block()   const noexcept { assert(type == BLOCK); return data.p_block; }
-        list*  as_list()    const noexcept { assert(type == LIST);  return data.p_list; }
-        date   as_date()    const noexcept { assert(type == DATE);  return data.date; }
-
-        /* more readable accessors (unchecked type) */
-        char*  c_str()   const noexcept { return data.s; }
-        int    integer() const noexcept { return data.i; }
-        /*
-        char*  title()   const noexcept { return data.s; }
-        block* block()   const noexcept { return data.p_block; }
-        list*  list()    const noexcept { return data.p_list; }
-        date_t date()    const noexcept { return data.date; }
-        */
         /* type accessors */
-        bool is_c_str()   const noexcept { return type == STR; }
-        bool is_integer() const noexcept { return type == INT; }
-        bool is_title()   const noexcept { return type == TITLE; }
+        bool is_c_str()   const noexcept { return type == STRING; }
+        bool is_keyword() const noexcept { return type == KEYWORD; }
+        bool is_integer() const noexcept { return type == INTEGER; }
+        bool is_decimal() const noexcept { return type == DECIMAL; }
         bool is_block()   const noexcept { return type == BLOCK; }
         bool is_list()    const noexcept { return type == LIST; }
         bool is_date()    const noexcept { return type == DATE; }
@@ -110,8 +96,10 @@ namespace pdx {
         obj val;
 
         bool key_eq(const char* s) const noexcept {
-            return (key.type == obj::STR
-                            && strcmp(key.data.s, s) == 0);
+            return (key.type == obj::STRING && strcmp(key.as_c_str(), s) == 0);
+        }
+        bool key_eq(const std::string& s) const noexcept {
+            return (key.type == obj::STRING && s == key.as_c_str());
         }
 
         void print(FILE*, uint indent = 0);
@@ -139,27 +127,43 @@ namespace pdx {
         saved_token tok2;
 
     public:
-        plexer(const char* filename) : lexer(filename), state(NORMAL) { }
+        plexer() = delete;
+        plexer(const fs::path& p) : lexer(p), state(NORMAL) { }
     };
 
-    struct list {
-        std::vector<obj> obj_list;
+    class list {
+        typedef std::vector<obj> vec_t;
+        vec_t vec;
 
+    public:
+        list() = delete;
         list(plexer&);
+
+        vec_t::size_type      size() const  { return vec.size(); }
+        vec_t::iterator       begin()       { return vec.begin(); }
+        vec_t::iterator       end()         { return vec.end(); }
+        vec_t::const_iterator begin() const { return vec.cbegin(); }
+        vec_t::const_iterator end() const   { return vec.cend(); }
     };
 
-    struct block {
-        std::vector<stmt> stmt_list;
+    class block {
+        typedef std::vector<stmt> vec_t;
+        vec_t vec;
 
+    public:
         block() { }
         block(plexer&, bool is_root = false, bool is_save = false);
 
         void print(FILE*, uint indent = 0);
 
+        vec_t::size_type      size() const  { return vec.size(); }
+        vec_t::iterator       begin()       { return vec.begin(); }
+        vec_t::iterator       end()         { return vec.end(); }
+        vec_t::const_iterator begin() const { return vec.cbegin(); }
+        vec_t::const_iterator end() const   { return vec.cend(); }
+
     protected:
         static block EMPTY_BLOCK;
-
-        void slurp_color(obj&, plexer&) const;
     };
 
     static const uint TIER_BARON = 1;

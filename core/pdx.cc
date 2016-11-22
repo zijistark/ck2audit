@@ -2,9 +2,9 @@
 #include "pdx.h"
 #include "token.h"
 #include "error.h"
-#include "legacy_compat.h"
 
 #include <cstdlib>
+#include <string.h>
 #include <ctype.h>
 
 
@@ -37,31 +37,20 @@ namespace pdx {
                 return;
             }
 
-            stmt_list.push_back(stmt());
-            stmt& stmt = stmt_list.back();
+            vec.emplace_back();
+            stmt& stmt = vec.back();
 
             if (tok.type == token::STR) {
-
-                stmt.key.data.s = _strdup( tok.text );
-
-                if (tok.type == token::DATE)
-                    stmt.key.type = obj::DATE;
-                else if (looks_like_title( tok.text ))
-                    stmt.key.type = obj::TITLE;
-                else {
-
-                    if ( (strcmp(tok.text, "color") == 0) || (strcmp(tok.text, "color2") == 0) ) {
-                        slurp_color(stmt.val, lex);
-                        continue;
-                    }
-                }
+                stmt.key.data.s = strdup( tok.text );
             }
             else if (tok.type == token::DATE) {
                 stmt.key.type = obj::DATE;
-                stmt.key.store_date_from_str(tok.text);
+                stmt.key.data.s = strdup( tok.text );
+                // FIXME: new date encoder plz
+                //stmt.key.store_date_from_str(tok.text);
             }
-            else if (tok.type == token::INT) {
-                stmt.key.type = obj::INT;
+            else if (tok.type == token::INTEGER) {
+                stmt.key.type = obj::INTEGER;
                 stmt.key.data.i = atoi( tok.text );
             }
             else
@@ -120,58 +109,29 @@ namespace pdx {
 
                 /* ... will handle its own closing brace */
             }
-            else if (tok.type == token::STR) {
-                stmt.val.data.s = _strdup( tok.text );
-
-                if (looks_like_title( tok.text ))
-                    stmt.val.type = obj::TITLE;
-            }
-            else if (tok.type == token::QSTR) {
-                stmt.val.data.s = _strdup( tok.text );
+            else if (tok.type == token::STR || tok.type == token::QSTR) {
+                stmt.val.data.s = strdup( tok.text );
             }
             else if (tok.type == token::QDATE || tok.type == token::DATE) {
                 /* for savegames, otherwise only on LHS (and never quoted) */
                 stmt.val.type = obj::DATE;
-                stmt.val.data.s = _strdup( tok.text );
+                stmt.val.data.s = strdup( tok.text ); // FIXME: new date encoder plz
             }
-            else if (tok.type == token::INT) {
-                stmt.val.type = obj::INT;
+            else if (tok.type == token::INTEGER) {
+                stmt.val.type = obj::INTEGER;
                 stmt.val.data.i = atoi( tok.text );
             }
-            else if (tok.type == token::FLOAT) {
+            else if (tok.type == token::DECIMAL) {
                 stmt.val.type = obj::DECIMAL;
-                stmt.val.data.s = _strdup( tok.text );
+                stmt.val.data.s = strdup( tok.text );
             }
             else
                 lex.unexpected_token(tok);
         }
     }
 
-
-    /* could be represented as generic lists, but aren't */
-    void block::slurp_color(obj& obj, plexer& lex) const {
-        token t;
-
-        lex.next_expected(&t, token::EQ);
-        lex.next_expected(&t, token::OPEN);
-
-        obj.type = obj::COLOR;
-
-        lex.next_expected(&t, token::INT);
-        obj.data.color.r = static_cast<uint8_t>( atoi(t.text) );
-
-        lex.next_expected(&t, token::INT);
-        obj.data.color.g = static_cast<uint8_t>( atoi(t.text) );
-
-        lex.next_expected(&t, token::INT);
-        obj.data.color.b = static_cast<uint8_t>( atoi(t.text) );
-
-        lex.next_expected(&t, token::CLOSE);
-    }
-
-
     void block::print(FILE* f, uint indent) {
-        for (auto&& s : stmt_list)
+        for (auto&& s : vec)
             s.print(f, indent);
     }
 
@@ -187,19 +147,17 @@ namespace pdx {
 
     void obj::print(FILE* f, uint indent) {
 
-        if (type == STR) {
+        if (type == STRING) {
             if (strpbrk(data.s, " \t\xA0\r\n\'")) // not the only time to quote, but whatever
                 fprintf(f, "\"%s\"", data.s);
             else
                 fprintf(f, "%s", data.s);
         }
-        else if (type == INT)
+        else if (type == INTEGER)
             fprintf(f, "%d", data.i);
         else if (type == DECIMAL)
             fprintf(f, "%s", data.s);
         else if (type == DATE)
-            fprintf(f, "%s", data.s);
-        else if (type == TITLE)
             fprintf(f, "%s", data.s);
         else if (type == BLOCK) {
             fprintf(f, "{\n");
@@ -209,15 +167,13 @@ namespace pdx {
         else if (type == LIST) {
             fprintf(f, "{ ");
 
-            for (auto&& o : data.p_list->obj_list) {
+            for (auto&& o : *as_list()) {
                     o.print(f, indent);
                     fprintf(f, " ");
             }
 
             fprintf(f, "}");
         }
-        else if (type == COLOR)
-            fprintf(f, "{ %u %u %u }", data.color.r, data.color.g, data.color.b);
         else
             assert(false);
     }
@@ -230,23 +186,23 @@ namespace pdx {
             lex.next(&t);
 
             if (t.type == token::QSTR || t.type == token::STR) {
-                o.data.s = _strdup(t.text);
-                obj_list.push_back(o);
+                o.data.s = strdup(t.text);
+                vec.push_back(o);
             }
-            else if (t.type == token::INT) {
-                o.type = obj::INT;
+            else if (t.type == token::INTEGER) {
+                o.type = obj::INTEGER;
                 o.data.i = atoi(t.text);
-                obj_list.push_back(o);
+                vec.push_back(o);
             }
-            else if (t.type == token::FLOAT) {
+            else if (t.type == token::DECIMAL) {
                 o.type = obj::DECIMAL;
-                o.data.s = _strdup(t.text);
-                obj_list.push_back(o);
+                o.data.s = strdup(t.text);
+                vec.push_back(o);
             }
             else if (t.type == token::OPEN) {
                 o.type = obj::BLOCK;
                 o.data.p_block = new block(lex);
-                obj_list.push_back(o);
+                vec.push_back(o);
             }
             else if (t.type != token::CLOSE)
                 lex.unexpected_token(t);
@@ -340,33 +296,6 @@ namespace pdx {
             return false;
 
         return true;
-    }
-
-
-    void obj::store_date_from_str(char* s, lexer* p_lex) {
-        /* we already are guaranteed to have a well-formed date string due to the
-         * lexer's recognition rules */
-        char* s_y = strsep(&s, ".");
-        char* s_m = strsep(&s, ".");
-        char* s_d = strsep(&s, ".");
-        const int y = atoi(s_y);
-        const int m = atoi(s_m);
-        const int d = atoi(s_d);
-
-        if (p_lex != nullptr) {
-            if ( y <= 0 || y >= (1<<16) )
-                throw va_error("Invalid year %d in date-type expression at %s:L%d", y, p_lex->filename(), p_lex->line());
-            if ( m <= 0 || m > 12 )
-                throw va_error("Invalid month %d in date-type expression at %s:L%d", m, p_lex->filename(), p_lex->line());
-            if ( d <= 0 || d > 31 )
-                throw va_error("Invalid day %d in date-type expression at %s:L%d", m, p_lex->filename(), p_lex->line());
-        }
-
-        data.date = {
-            static_cast<uint16_t>(y),
-            static_cast<uint8_t>(m),
-            static_cast<uint8_t>(d)
-        };
     }
 }
 
