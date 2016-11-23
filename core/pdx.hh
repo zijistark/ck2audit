@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "token.h"
 #include "error.h"
+#include "cstr_pool.hh"
 
 #include <vector>
 #include <cstring>
@@ -55,7 +56,7 @@ namespace pdx {
 #pragma pack(pop)
 
     struct obj {
-        enum : uint {
+        enum : uint8_t {
             STRING = 0,
             KEYWORD, // TODO
             INTEGER,
@@ -68,23 +69,21 @@ namespace pdx {
         union U {
             char*  s;
             int    i;
+            date   date;
             block* p_block;
             list*  p_list;
-            date   date;
             // uint id;
-            U() { }
+
+            U() {}
         } data;
 
-        obj() { type = STRING; data.s = 0; }
-
         /* KEYWORD & DECIMAL currently don't have default constructors, as they'll
-          * have distinct types once implemented */
-        obj(char* s)  { type = STRING;  data.s = s; }
-        obj(int i)    { type = INTEGER; data.i = i; }
-        obj(date d)   { type = DATE;    data.date = d; }
-        obj(block* p) { type = BLOCK;   data.p_block = p; }
-        obj(list* p)  { type = LIST;    data.p_list = p; }
-
+         * have distinct types once implemented */
+        obj(char* s = nullptr) : type(STRING)  { data.s = s; }
+        obj(int i)             : type(INTEGER) { data.i = i; }
+        obj(date d)            : type(DATE)    { data.date = d; }
+        obj(block* p)          : type(BLOCK)   { data.p_block = p; }
+        obj(list* p)           : type(LIST)    { data.p_list = p; }
 
         /* accessors (unchecked type) */
         char*  as_c_str()   const noexcept { return data.s; }
@@ -159,13 +158,7 @@ namespace pdx {
         static block EMPTY_BLOCK;
     };
 
-    struct plexer : public lexer {
-        void next(token*, bool eof_ok = false);
-        void next_expected(token*, uint type);
-        void unexpected_token(const token&) const;
-        void save_and_lookahead(token*);
-
-    private:
+    class plexer : public lexer {
         struct saved_token : public token {
             char buf[128];
             saved_token() : token(token::END, &buf[0]) { }
@@ -180,11 +173,25 @@ namespace pdx {
         saved_token tok1;
         saved_token tok2;
 
+        cstr_pool<511> string_pool; // strings in pool may be no larger than 511 characters long
+
     public:
         plexer() = delete;
         plexer(const fs::path& p) : lexer(p), state(NORMAL) {}
         plexer(const std::string& p) : lexer(p), state(NORMAL) {}
         plexer(const char* p) : lexer(p), state(NORMAL) {}
+
+        /* allocate space for src, copy src, return pointer to copy. allocation is from string_pool associated
+         * with this plexer (could theoretically be a parameter of plexer, shared among more parsers, but eh).
+         * this practice allows us to cheaply allocate a bunch of small strings and even more cheaply deallocate
+         * all of them when this plexer is destroyed.
+         */
+        char* copy_c_str(const char* src) { return string_pool.copy_c_str(src); }
+
+        void next(token*, bool eof_ok = false);
+        void next_expected(token*, uint type);
+        void unexpected_token(const token&) const;
+        void save_and_lookahead(token*);
     };
 
     static const uint TIER_BARON = 1;

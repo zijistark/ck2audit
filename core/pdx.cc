@@ -42,7 +42,7 @@ namespace pdx {
             obj key;
 
             if (tok.type == token::STR)
-                key = obj{ tok.text };
+                key = obj{ lex.copy_c_str(tok.text) };
             else if (tok.type == token::DATE)
                 key = obj{ date{ tok.text } };
             else if (tok.type == token::INTEGER)
@@ -94,7 +94,7 @@ namespace pdx {
                 /* ... will handle its own closing brace */
             }
             else if (tok.type == token::STR || tok.type == token::QSTR)
-                val = obj{ tok.text };
+                val = obj{ lex.copy_c_str(tok.text) };
             else if (tok.type == token::QDATE || tok.type == token::DATE) {
                 /* for savegames, otherwise only on LHS (and never quoted) */
                 val = obj{ date{ tok.text } };
