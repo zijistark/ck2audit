@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "lexer.h"
-#include "token.h"
-#include "error.h"
-#include "cstr_pool.hh"
+#include "lexer.hpp"
+#include "token.hpp"
+#include "error.hpp"
+#include "cstr_pool.hpp"
 
 #include <vector>
 #include <cstring>

@@ -1,10 +1,10 @@
 
 #include <cstdio>
 #include <cassert>
-#include "lexer.h"
+#include "lexer.hpp"
 #include "scanner.h"
-#include "token.h"
-#include "error.h"
+#include "token.hpp"
+#include "error.hpp"
 
 
 lexer::lexer(const char* pathname)

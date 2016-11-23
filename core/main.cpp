@@ -1,7 +1,7 @@
 
-#include "mod_vfs.h"
-#include "pdx.h"
-#include "error.h"
+#include "mod_vfs.hpp"
+#include "pdx.hpp"
+#include "error.hpp"
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>

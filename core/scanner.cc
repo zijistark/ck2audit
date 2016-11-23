@@ -1,4 +1,4 @@
-    #include "token.h"
+    #include "token.hpp"
 
 #line 4 "<stdout>"
 

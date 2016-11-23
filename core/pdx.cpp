@@ -1,12 +1,9 @@
 
-#include "pdx.h"
-#include "token.h"
-#include "error.h"
+#include "pdx.hpp"
+#include "token.hpp"
+#include "error.hpp"
 
-#include <cstdlib>
-#include <string.h>
 #include <ctype.h>
-
 #include <boost/tokenizer.hpp>
 
 

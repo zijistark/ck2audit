@@ -6,8 +6,6 @@
 #include <string>
 #include <boost/filesystem.hpp>
 
-#include "scanner.h"
-
 namespace fs = boost::filesystem;
 
 typedef unsigned int uint;

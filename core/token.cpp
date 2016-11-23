@@ -1,5 +1,5 @@
 
-#include "token.h"
+#include "token.hpp"
 
 const char* token::TYPE_MAP[] = {
     "EOF",
