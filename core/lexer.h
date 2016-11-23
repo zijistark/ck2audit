@@ -18,15 +18,16 @@ class lexer {
 
     /* position of last-lexed token */
     uint _line;
-    const char* _filename;
+    const char* _pathname;
 
 public:
     lexer() = delete;
     lexer(const char* path);
-    lexer(const fs::path& p) : lexer(p.string().c_str()) { }
+    lexer(const std::string& path) : lexer(path.c_str()) {}
+    lexer(const fs::path& path) : lexer(path.string().c_str()) {}
 
     bool next(token* p_tok);
 
-    const char* filename() const noexcept { return _filename; }
+    const char* pathname() const noexcept { return _pathname; }
     uint line() const noexcept { return _line; }
 };

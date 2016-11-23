@@ -7,13 +7,13 @@
 #include "error.h"
 
 
-lexer::lexer(const char* filename)
-    : _f(fopen(filename, "rb")),
+lexer::lexer(const char* pathname)
+    : _f(fopen(pathname, "rb")),
       _line(0),
-      _filename(filename) {
+      _pathname(pathname) {
 
     if (!_f)
-        throw va_error("could not open file: %s", filename);
+        throw va_error("Could not open file: %s", pathname);
 
     yyin = _f;
     yylineno = 1;

@@ -1,7 +1,6 @@
-#line 2 "scanner.cc"
     #include "token.h"
 
-#line 5 "scanner.cc"
+#line 4 "<stdout>"
 
 #define  YY_INT_ALIGNED short int
 
@@ -504,9 +503,17 @@ char *yytext;
 #line 1 "scanner.ll"
 #define YY_NO_UNISTD_H 1
 
-#line 508 "scanner.cc"
+#line 507 "<stdout>"
 
 #define INITIAL 0
+
+#ifndef YY_NO_UNISTD_H
+/* Special case for "unistd.h", since it is non-ANSI. We include it way
+ * down here because we want the user's section 1 to have been scanned first.
+ * The user has a chance to override it with an option.
+ */
+#include <unistd.h>
+#endif
 
 #ifndef YY_EXTRA_TYPE
 #define YY_EXTRA_TYPE void *
@@ -717,7 +724,7 @@ YY_DECL
 #line 18 "scanner.ll"
 
 
-#line 721 "scanner.cc"
+#line 728 "<stdout>"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -793,12 +800,12 @@ YY_RULE_SETUP
 case 3:
 YY_RULE_SETUP
 #line 22 "scanner.ll"
-{ return token::FLOAT; }
+{ return token::DECIMAL; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
 #line 23 "scanner.ll"
-{ return token::INT; }
+{ return token::INTEGER; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
@@ -846,7 +853,7 @@ YY_RULE_SETUP
 #line 33 "scanner.ll"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 850 "scanner.cc"
+#line 857 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 

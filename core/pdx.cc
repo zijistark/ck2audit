@@ -7,6 +7,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <boost/tokenizer.hpp>
+
 
 namespace pdx {
 
@@ -31,27 +33,20 @@ namespace pdx {
             if (tok.type == token::CLOSE) {
                 if (is_root && !is_save) // closing braces are only bad at root level
                     throw va_error("Unmatched closing brace in %s (before line %u)",
-                                   lex.filename(), lex.line());
+                                   lex.pathname(), lex.line());
 
                 // otherwise, they mean it's time return to the previous block
                 return;
             }
 
-            obj k;
+            obj key;
 
-            if (tok.type == token::STR) {
-                k.data.s = strdup( tok.text );
-            }
-            else if (tok.type == token::DATE) {
-                k.type = obj::DATE;
-                k.data.s = strdup( tok.text );
-                // FIXME: new date encoder plz
-                //stmt.key.store_date_from_str(tok.text);
-            }
-            else if (tok.type == token::INTEGER) {
-                k.type = obj::INTEGER;
-                k.data.i = atoi( tok.text );
-            }
+            if (tok.type == token::STR)
+                key = obj{ tok.text };
+            else if (tok.type == token::DATE)
+                key = obj{ date{ tok.text } };
+            else if (tok.type == token::INTEGER)
+                key = obj{ atoi(tok.text) };
             else
                 lex.unexpected_token(tok);
 
@@ -60,7 +55,7 @@ namespace pdx {
             lex.next_expected(&tok, token::EQ);
 
             /* on to value... */
-            obj v;
+            obj val;
             lex.next(&tok);
 
             if (tok.type == token::OPEN) {
@@ -74,9 +69,7 @@ namespace pdx {
                 if (tok.type == token::CLOSE) {
                     /* empty block */
 
-                    v.type = obj::BLOCK;
-                    v.data.p_block = &EMPTY_BLOCK;
-
+                    val = obj{ &EMPTY_BLOCK };
                     continue;
                 }
                 else if (tok.type == token::OPEN) {
@@ -93,42 +86,28 @@ namespace pdx {
 
                 lex.save_and_lookahead(&tok);
 
-                if (tok.type != token::EQ || double_open) {
-
-                    /* by God, this is (probably) a list! */
-                    v.type = obj::LIST;
-                    v.data.p_list = new list(lex);
-                }
-                else {
-                    /* presumably a block */
-
-                    /* time to recurse ... */
-                    v.type = obj::BLOCK;
-                    v.p_block = new block(lex);
-                }
+                if (tok.type != token::EQ || double_open)
+                    val = obj{ new list(lex) }; // by God, this is (probably) a list!
+                else
+                    val = obj{ new block(lex) }; // presumably block, so recurse
 
                 /* ... will handle its own closing brace */
             }
-            else if (tok.type == token::STR || tok.type == token::QSTR) {
-                v.data.s = strdup( tok.text );
-            }
+            else if (tok.type == token::STR || tok.type == token::QSTR)
+                val = obj{ tok.text };
             else if (tok.type == token::QDATE || tok.type == token::DATE) {
                 /* for savegames, otherwise only on LHS (and never quoted) */
-                v.type = obj::DATE;
-                v.data.s = strdup( tok.text ); // FIXME: new date encoder plz
+                val = obj{ date{ tok.text } };
             }
-            else if (tok.type == token::INTEGER) {
-                v.type = obj::INTEGER;
-                v.data.i = atoi( tok.text );
-            }
-            else if (tok.type == token::DECIMAL) {
-                v.type = obj::DECIMAL;
-                v.data.s = strdup( tok.text );
-            }
+            else if (tok.type == token::INTEGER)
+                val = obj{ atoi(tok.text) };
             else
                 lex.unexpected_token(tok);
 
-            vec.emplace_back(k, v);
+            // TODO: RHS (val) should support fixed-point decimal types; I haven't decided whether to make integers
+            // and fixed-point decimal all use the same 64-bit type yet.
+
+            vec.emplace_back(key, val);
         }
     }
 
@@ -184,27 +163,15 @@ namespace pdx {
         token t;
 
         while (true) {
-            obj o;
             lex.next(&t);
 
             if (t.type == token::QSTR || t.type == token::STR) {
-                o.data.s = strdup(t.text);
-                vec.push_back(o);
+                vec.emplace_back( t.text );
             }
-            else if (t.type == token::INTEGER) {
-                o.type = obj::INTEGER;
-                o.data.i = atoi(t.text);
-                vec.push_back(o);
-            }
-            else if (t.type == token::DECIMAL) {
-                o.type = obj::DECIMAL;
-                o.data.s = strdup(t.text);
-                vec.push_back(o);
-            }
+            else if (t.type == token::INTEGER)
+                vec.emplace_back( atoi(t.text) );
             else if (t.type == token::OPEN) {
-                o.type = obj::BLOCK;
-                o.data.p_block = new block(lex);
-                vec.push_back(o);
+                vec.emplace_back( new block(lex) );
             }
             else if (t.type != token::CLOSE)
                 lex.unexpected_token(t);
@@ -218,13 +185,13 @@ namespace pdx {
 
         if (p_tok->type != type)
             throw va_error("Expected %s token but got token %s at %s:L%d",
-                                         token::TYPE_MAP[type], p_tok->type_name(), filename(), line());
+                                         token::TYPE_MAP[type], p_tok->type_name(), pathname(), line());
     }
 
 
     void plexer::unexpected_token(const token& t) const {
         throw va_error("Unexpected token %s at %s:L%d",
-                                     t.type_name(), filename(), line());
+                                     t.type_name(), pathname(), line());
     }
 
 
@@ -250,13 +217,13 @@ namespace pdx {
 
             if (p_tok->type == token::END) {
                 if (!eof_ok)
-                    throw va_error("Unexpected EOF at %s:L%d", filename(), line());
+                    throw va_error("Unexpected EOF at %s:L%d", pathname(), line());
                 else
                     return;
             }
 
             if (p_tok->type == token::FAIL)
-                throw va_error("Unrecognized token at %s:L%d", filename(), line());
+                throw va_error("Unrecognized token at %s:L%d", pathname(), line());
 
             if (p_tok->type == token::COMMENT)
                 continue;
@@ -278,6 +245,41 @@ namespace pdx {
 
         /* set lexer to read from the saved tokens first */
         state = TOK1;
+    }
+
+    date::date(const char* date_str, plexer* p_lex) {
+        /* FIXME: I thought this would be cleaner and more standard than using strsep, but I was wrong.
+         * current implementation implies a lot of unnecessary copying/allocation (even for an awesome
+         * compiler). that's why the date_str parameter is kept mutable in the spec -- so that I can
+         * return this to an strpbrk-based inline split. */
+
+        const std::string s{ date_str };
+
+        typedef boost::tokenizer< boost::char_separator<char> > tokenizer_t;
+        tokenizer_t tok(s, boost::char_separator<char>(". "));
+
+        auto t = tok.begin();
+        if (t == tok.end()) throw_error(p_lex);
+        y = atoi(t->c_str());
+
+        ++t;
+        if (t == tok.end()) throw_error(p_lex);
+        m = atoi(t->c_str());
+
+        ++t;
+        if (t == tok.end()) throw_error(p_lex);
+        d = atoi(t->c_str());
+
+        if (++t != tok.end()) throw_error(p_lex);
+    }
+
+    void date::throw_error(const plexer* p_lex) {
+        y = 0; m = 0; d = 0;
+
+        if (p_lex != nullptr)
+            throw va_error("Malformed date-type expression at %s:L%d", p_lex->pathname(), p_lex->line());
+        else
+            throw va_error("Malformed date-type expression");
     }
 
 
