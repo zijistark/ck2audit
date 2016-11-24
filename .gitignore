@@ -1,3 +1,6 @@
+# Sublime Text Projects
+*.sublime-*
+
 # SCons DB
 *.sconsign.*
 

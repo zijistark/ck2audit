@@ -9,9 +9,9 @@
 
 #include <vector>
 #include <cstring>
-#include <cassert>
+#include <cassert> // deprecated
 #include <cstdint>
-#include <cstdio>
+#include <cstdio> // deprecated
 
 
 namespace pdx {
@@ -173,20 +173,20 @@ namespace pdx {
         saved_token tok1;
         saved_token tok2;
 
-        cstr_pool<511> string_pool; // strings in pool may be no larger than 511 characters long
+        cstr_pool<char> string_pool;
 
     public:
         plexer() = delete;
-        plexer(const fs::path& p) : lexer(p), state(NORMAL) {}
-        plexer(const std::string& p) : lexer(p), state(NORMAL) {}
         plexer(const char* p) : lexer(p), state(NORMAL) {}
+        plexer(const std::string& p) : plexer(p.c_str()) {}
+        plexer(const fs::path& p) : plexer(p.string().c_str()) {}
 
         /* allocate space for src, copy src, return pointer to copy. allocation is from string_pool associated
          * with this plexer (could theoretically be a parameter of plexer, shared among more parsers, but eh).
          * this practice allows us to cheaply allocate a bunch of small strings and even more cheaply deallocate
          * all of them when this plexer is destroyed.
          */
-        char* copy_c_str(const char* src) { return string_pool.copy_c_str(src); }
+        char* strdup(const char* src) { return string_pool.strdup(src); }
 
         void next(token*, bool eof_ok = false);
         void next_expected(token*, uint type);
