@@ -9,8 +9,6 @@
 
 namespace pdx {
 
-    block block::EMPTY_BLOCK;
-
     block::block(plexer& lex, bool is_root, bool is_save) {
 
         if (is_root && is_save) {
@@ -65,8 +63,7 @@ namespace pdx {
 
                 if (tok.type == token::CLOSE) {
                     /* empty block */
-
-                    val = obj{ &EMPTY_BLOCK };
+                    val = obj{ std::make_unique<block>() };
                     continue;
                 }
                 else if (tok.type == token::OPEN) {
@@ -84,9 +81,9 @@ namespace pdx {
                 lex.save_and_lookahead(&tok);
 
                 if (tok.type != token::EQ || double_open)
-                    val = obj{ new list(lex) }; // by God, this is (probably) a list!
+                    val = obj{ std::make_unique<list>(lex) }; // by God, this is (probably) a list!
                 else
-                    val = obj{ new block(lex) }; // presumably block, so recurse
+                    val = obj{ std::make_unique<block>(lex) }; // presumably block, so recurse
 
                 /* ... will handle its own closing brace */
             }
@@ -133,21 +130,21 @@ namespace pdx {
         }
         else if (type == INTEGER)
             fprintf(f, "%d", data.i);
-        else if (type == DECIMAL)
-            fprintf(f, "%s", data.s);
+//        else if (type == DECIMAL)
+//            fprintf(f, "%s", data.s);
         else if (type == DATE)
             fprintf(f, "%s", data.s);
         else if (type == BLOCK) {
             fprintf(f, "{\n");
-            data.p_block->print(f, indent+4);
+            data.up_block->print(f, indent+4);
             fprintf(f, "%*s}", indent, "");
         }
         else if (type == LIST) {
             fprintf(f, "{ ");
 
-            for (auto&& o : *this->as_list()) {
-                    o.print(f, indent);
-                    fprintf(f, " ");
+            for (auto&& o : *as_list()) {
+                o.print(f, indent);
+                fprintf(f, " ");
             }
 
             fprintf(f, "}");
@@ -162,13 +159,12 @@ namespace pdx {
         while (true) {
             lex.next(&t);
 
-            if (t.type == token::QSTR || t.type == token::STR) {
-                vec.emplace_back( t.text );
-            }
+            if (t.type == token::QSTR || t.type == token::STR)
+                vec.emplace_back( lex.strdup(t.text) );
             else if (t.type == token::INTEGER)
                 vec.emplace_back( atoi(t.text) );
             else if (t.type == token::OPEN) {
-                vec.emplace_back( new block(lex) );
+                vec.emplace_back( std::make_unique<block>(lex) );
             }
             else if (t.type != token::CLOSE)
                 lex.unexpected_token(t);

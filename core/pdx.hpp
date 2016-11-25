@@ -8,13 +8,14 @@
 #include "cstr_pool.hpp"
 
 #include <vector>
-#include <cstring>
-#include <cassert> // deprecated
 #include <cstdint>
 #include <cstdio> // deprecated
+#include <memory>
 
 
 namespace pdx {
+
+    using std::unique_ptr;
 
     struct block;
     struct list;
@@ -55,69 +56,97 @@ namespace pdx {
 
 #pragma pack(pop)
 
-    struct obj {
-        enum : uint8_t {
+    class obj {
+        enum {
             STRING = 0,
-            KEYWORD, // TODO
             INTEGER,
-            DECIMAL, // TODO
             DATE,
             BLOCK,
             LIST
         } type;
 
-        union U {
+        union data_union {
             char*  s;
             int    i;
-            date   date;
-            block* p_block;
-            list*  p_list;
-            // uint id;
+            date   d;
+            unique_ptr<block> up_block;
+            unique_ptr<list>  up_list;
 
-            U() {}
+            data_union() {}
+            ~data_union() {}
         } data;
 
-        /* KEYWORD & DECIMAL currently don't have default constructors, as they'll
-         * have distinct types once implemented */
-        obj(char* s = nullptr) : type(STRING)  { data.s = s; }
-        obj(int i)             : type(INTEGER) { data.i = i; }
-        obj(date d)            : type(DATE)    { data.date = d; }
-        obj(block* p)          : type(BLOCK)   { data.p_block = p; }
-        obj(list* p)           : type(LIST)    { data.p_list = p; }
+        void destroy() noexcept { // helper method for dtor & move-assignment operator
+            switch (type) {
+                case STRING:
+                case INTEGER:
+                case DATE:
+                    break;
+                case BLOCK: data.up_block.~unique_ptr<block>(); break;
+                case LIST:  data.up_list.~unique_ptr<list>(); break;
+            }
+        }
 
-        /* accessors (unchecked type) */
+    public:
+
+        obj(char* s = nullptr)    : type(STRING)  { data.s = s; }
+        obj(int i)                : type(INTEGER) { data.i = i; }
+        obj(date d)               : type(DATE)    { data.d = d; }
+        obj(unique_ptr<block> up) : type(BLOCK)   { new (&data.up_block) unique_ptr<block>(std::move(up)); }
+        obj(unique_ptr<list> up)  : type(LIST)    { new (&data.up_list) unique_ptr<list>(std::move(up)); }
+
+        /* move-assignment operator */
+        obj& operator=(obj&& other) {
+            if (this == &other) return *this; // guard against self-assignment
+            destroy(); // destroy our current resources
+            /* move resources from other & return self */
+            type = other.type;
+            switch (other.type) {
+                case STRING:  data.s = other.data.s; break;
+                case INTEGER: data.i = other.data.i; break;
+                case DATE:    data.d = other.data.d; break;
+                case BLOCK:   new (&data.up_block) unique_ptr<block>(std::move(other.data.up_block)); break;
+                case LIST:    new (&data.up_list)  unique_ptr<list>(std::move(other.data.up_list)); break;
+            }
+            return *this;
+        }
+
+        /* move-constructor (implemented via move-assignment) */
+        obj(obj&& other) : obj() { *this = std::move(other); }
+
+        /* destructor */
+        ~obj() { destroy(); }
+
+        /* data accessors (unchecked type) */
         char*  as_c_str()   const noexcept { return data.s; }
         int    as_integer() const noexcept { return data.i; }
-        block* as_block()   const noexcept { return data.p_block; }
-        list*  as_list()    const noexcept { return data.p_list; }
-        date   as_date()    const noexcept { return data.date; }
-        // uint   as_keyword() const noexcept { return data.id; }
-        // char*  as_decimal() const noexcept { return data.s; }
+        date   as_date()    const noexcept { return data.d; }
+        block* as_block()   const noexcept { return data.up_block.get(); }
+        list*  as_list()    const noexcept { return data.up_list.get(); }
 
         /* type accessors */
         bool is_c_str()   const noexcept { return type == STRING; }
         bool is_integer() const noexcept { return type == INTEGER; }
+        bool is_date()    const noexcept { return type == DATE; }
         bool is_block()   const noexcept { return type == BLOCK; }
         bool is_list()    const noexcept { return type == LIST; }
-        bool is_date()    const noexcept { return type == DATE; }
-        // bool is_keyword() const noexcept { return type == KEYWORD; }
-        // bool is_decimal() const noexcept { return type == DECIMAL; }
 
         void print(FILE*, uint indent = 0);
     };
 
-    struct stmt {
+    class stmt {
+    public:
         obj key;
         obj val;
 
         stmt() = delete;
-        stmt(obj k, obj v) : key(k), val(v) {}
+        stmt(obj& k, obj& v) : key(std::move(k)), val(std::move(v)) {}
 
         bool key_eq(const char* s) const noexcept {
-            return (key.type == obj::STRING && strcmp(key.as_c_str(), s) == 0);
+            return key.is_c_str() && strcmp(key.as_c_str(), s) == 0;
         }
         bool key_eq(const std::string& s) const noexcept {
-            return (key.type == obj::STRING && s == key.as_c_str());
+            return key.is_c_str() && s == key.as_c_str();
         }
 
         void print(FILE*, uint indent = 0);
@@ -153,9 +182,6 @@ namespace pdx {
         vec_t::iterator       end()         { return vec.end(); }
         vec_t::const_iterator begin() const { return vec.cbegin(); }
         vec_t::const_iterator end() const   { return vec.cend(); }
-
-    protected:
-        static block EMPTY_BLOCK;
     };
 
     class plexer : public lexer {
