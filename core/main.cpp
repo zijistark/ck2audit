@@ -1,5 +1,4 @@
 
-#include "mod_vfs.hpp"
 #include "pdx.hpp"
 #include "error.hpp"
 
@@ -66,7 +65,7 @@ int main(int argc, const char** argv) {
 
         po::notify(opt);
 
-        mod_vfs vfs{ opt_game_path };
+        pdx::vfs vfs{ opt_game_path };
 
         if (opt.count("mod-path")) {
             vfs.push_mod_path(opt["mod-path"].as<path>());
