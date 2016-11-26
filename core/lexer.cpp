@@ -1,6 +1,5 @@
 
 #include <cstdio>
-#include <cassert>
 #include "lexer.hpp"
 #include "scanner.h"
 #include "token.hpp"
@@ -8,14 +7,14 @@
 
 
 lexer::lexer(const char* pathname)
-    : _f(fopen(pathname, "rb")),
+    : _f( std::fopen(pathname, "rb"), std::fclose ),
       _line(0),
       _pathname(pathname) {
 
-    if (!_f)
+    if (_f.get() == nullptr)
         throw va_error("Could not open file: %s", pathname);
 
-    yyin = _f;
+    yyin = _f.get();
     yylineno = 1;
 }
 
@@ -25,11 +24,12 @@ bool lexer::next(token* p_tok) {
 
     if (( type = yylex() ) == 0) {
         /* EOF, so close our filehandle, and signal EOF */
-        fclose(_f);
-        _f = 0;
+        _f.reset();
         _line = yylineno;
         p_tok->type = token::END;
         p_tok->text = 0;
+        yyin = nullptr;
+        yylineno = 0;
         return false;
     }
 

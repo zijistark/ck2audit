@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <string>
+#include <memory>
 #include <boost/filesystem.hpp>
 
 namespace fs = boost::filesystem;
@@ -12,7 +13,8 @@ typedef unsigned int uint;
 struct token;
 
 class lexer {
-    FILE* _f;
+    typedef std::unique_ptr<std::FILE, int (*)(std::FILE *)> unique_file_ptr;
+    unique_file_ptr _f;
 
     /* position of last-lexed token */
     uint _line;
