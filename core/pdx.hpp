@@ -19,7 +19,7 @@ namespace pdx {
 
     struct block;
     struct list;
-    struct plexer;
+    struct parser;
 
 #pragma pack(push, 1)
 
@@ -30,7 +30,7 @@ namespace pdx {
 
         date() : y(0), m(0), d(0) {}
         date(int16_t year, int8_t month, int8_t day) : y(year), m(month), d(day) {}
-        date(const char*, plexer* p_lex = nullptr);
+        date(const char*, parser* p_lex = nullptr);
 
         bool operator<(date e) const noexcept {
             /* note that since our binary representation is simpy a 32-bit unsigned integer
@@ -51,7 +51,7 @@ namespace pdx {
         int8_t  day()   const noexcept { return d; }
 
     private:
-        void throw_error(const plexer* p_lex = nullptr);
+        void throw_error(const parser* p_lex = nullptr);
     };
 
 #pragma pack(pop)
@@ -134,20 +134,19 @@ namespace pdx {
         void print(FILE*, uint indent = 0);
     };
 
-    class stmt {
+    class statement {
+        obj _k;
+        obj _v;
+
     public:
-        obj key;
-        obj val;
+        statement() = delete;
+        statement(obj& k, obj& v) : _k(std::move(k)), _v(std::move(v)) {}
 
-        stmt() = delete;
-        stmt(obj& k, obj& v) : key(std::move(k)), val(std::move(v)) {}
+        const obj& key()   const noexcept { return _k; }
+        const obj& value() const noexcept { return _v; }
 
-        bool key_eq(const char* s) const noexcept {
-            return key.is_c_str() && strcmp(key.as_c_str(), s) == 0;
-        }
-        bool key_eq(const std::string& s) const noexcept {
-            return key.is_c_str() && s == key.as_c_str();
-        }
+        bool key_eq(const char* s) const noexcept { return _k.is_c_str() && strcmp(_k.as_c_str(), s) == 0; }
+        bool key_eq(const std::string& s) const noexcept { return _k.is_c_str() && s == _k.as_c_str(); }
 
         void print(FILE*, uint indent = 0);
     };
@@ -158,7 +157,7 @@ namespace pdx {
 
     public:
         list() = delete;
-        list(plexer&);
+        list(parser&);
 
         vec_t::size_type      size() const  { return vec.size(); }
         vec_t::iterator       begin()       { return vec.begin(); }
@@ -168,12 +167,12 @@ namespace pdx {
     };
 
     class block {
-        typedef std::vector<stmt> vec_t;
+        typedef std::vector<statement> vec_t;
         vec_t vec;
 
     public:
         block() { }
-        block(plexer&, bool is_root = false, bool is_save = false);
+        block(parser&, bool is_root = false, bool is_save = false);
 
         void print(FILE*, uint indent = 0);
 
@@ -184,7 +183,7 @@ namespace pdx {
         vec_t::const_iterator end() const   { return vec.cend(); }
     };
 
-    class plexer : public lexer {
+    class parser : public lexer {
         struct saved_token : public token {
             char buf[128];
             saved_token() : token(token::END, &buf[0]) { }
@@ -201,18 +200,23 @@ namespace pdx {
 
         cstr_pool<char> string_pool;
 
+    protected:
+        friend class block;
+        friend class list;
+
+        char* strdup(const char* src) { return string_pool.strdup(src); }
+
     public:
-        plexer() = delete;
-        plexer(const char* p) : lexer(p), state(NORMAL) {}
-        plexer(const std::string& p) : plexer(p.c_str()) {}
-        plexer(const fs::path& p) : plexer(p.string().c_str()) {}
+        parser() = delete;
+        parser(const char* p) : lexer(p), state(NORMAL) {}
+        parser(const std::string& p) : parser(p.c_str()) {}
+        parser(const fs::path& p) : parser(p.string().c_str()) {}
 
         /* allocate space for src, copy src, return pointer to copy. allocation is from string_pool associated
-         * with this plexer (could theoretically be a parameter of plexer, shared among more parsers, but eh).
+         * with this parser (could theoretically be a parameter of parser, shared among more parsers, but eh).
          * this practice allows us to cheaply allocate a bunch of small strings and even more cheaply deallocate
-         * all of them when this plexer is destroyed.
+         * all of them when this parser is destroyed.
          */
-        char* strdup(const char* src) { return string_pool.strdup(src); }
 
         void next(token*, bool eof_ok = false);
         void next_expected(token*, uint type);

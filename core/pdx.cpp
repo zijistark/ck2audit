@@ -9,7 +9,7 @@
 
 using namespace pdx;
 
-pdx::block::block(plexer& lex, bool is_root, bool is_save) {
+block::block(parser& lex, bool is_root, bool is_save) {
 
     if (is_root && is_save) {
         /* skip over CK2txt header (savegames only) */
@@ -105,22 +105,22 @@ pdx::block::block(plexer& lex, bool is_root, bool is_save) {
     }
 }
 
-void pdx::block::print(FILE* f, uint indent) {
+void block::print(FILE* f, uint indent) {
     for (auto&& s : vec)
         s.print(f, indent);
 }
 
 
-void pdx::stmt::print(FILE* f, uint indent) {
+void statement::print(FILE* f, uint indent) {
     fprintf(f, "%*s", indent, "");
-    key.print(f, indent);
+    _k.print(f, indent);
     fprintf(f, " = ");
-    val.print(f, indent);
+    _v.print(f, indent);
     fprintf(f, "\n");
 }
 
 
-void pdx::obj::print(FILE* f, uint indent) {
+void obj::print(FILE* f, uint indent) {
 
     if (type == STRING) {
         if (strpbrk(data.s, " \t\xA0\r\n\'")) // not the only time to quote, but whatever
@@ -153,7 +153,7 @@ void pdx::obj::print(FILE* f, uint indent) {
         assert(false);
 }
 
-pdx::list::list(plexer& lex) {
+list::list(parser& lex) {
     token t;
 
     while (true) {
@@ -173,7 +173,7 @@ pdx::list::list(plexer& lex) {
     }
 }
 
-void pdx::plexer::next_expected(token* p_tok, uint type) {
+void parser::next_expected(token* p_tok, uint type) {
     next(p_tok);
 
     if (p_tok->type != type)
@@ -182,13 +182,13 @@ void pdx::plexer::next_expected(token* p_tok, uint type) {
 }
 
 
-void pdx::plexer::unexpected_token(const token& t) const {
+void parser::unexpected_token(const token& t) const {
     throw va_error("Unexpected token %s at %s:L%d",
                                  t.type_name(), pathname(), line());
 }
 
 
-void pdx::plexer::next(token* p_tok, bool eof_ok) {
+void parser::next(token* p_tok, bool eof_ok) {
 
     while (1) {
 
@@ -226,7 +226,7 @@ void pdx::plexer::next(token* p_tok, bool eof_ok) {
 }
 
 
-void pdx::plexer::save_and_lookahead(token* p_tok) {
+void parser::save_and_lookahead(token* p_tok) {
     /* save our two tokens of lookahead */
     tok1.type = p_tok->type;
     strcpy(tok1.text, p_tok->text); // buffer overflows are myths
@@ -240,7 +240,7 @@ void pdx::plexer::save_and_lookahead(token* p_tok) {
     state = TOK1;
 }
 
-pdx::date::date(const char* date_str, plexer* p_lex) {
+date::date(const char* date_str, parser* p_lex) {
     /* FIXME: I thought this would be cleaner and more standard than using strsep, but I was wrong.
      * current implementation implies a lot of unnecessary copying/allocation (even for an awesome
      * compiler). that's why the date_str parameter is kept mutable in the spec -- so that I can
@@ -266,7 +266,7 @@ pdx::date::date(const char* date_str, plexer* p_lex) {
     if (++t != tok.end()) throw_error(p_lex);
 }
 
-void pdx::date::throw_error(const plexer* p_lex) {
+void date::throw_error(const parser* p_lex) {
     y = 0; m = 0; d = 0;
 
     if (p_lex != nullptr)

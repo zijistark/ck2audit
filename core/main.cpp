@@ -79,7 +79,7 @@ int main(int argc, const char** argv) {
 
         /* done with program option processing */
 
-        pdx::plexer("file.txt");
+        pdx::parser("file.txt");
     }
     catch (const exception& e) {
         cerr << "fatal: " << e.what() << endl;
