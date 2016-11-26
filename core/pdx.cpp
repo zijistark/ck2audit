@@ -37,7 +37,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
         obj key;
 
         if (tok.type == token::STR)
-            key = obj{ lex.strdup(tok.text) };
+            key = obj{ lex.string_pool.strdup(tok.text) };
         else if (tok.type == token::DATE)
             key = obj{ date{ tok.text } };
         else if (tok.type == token::INTEGER)
@@ -88,7 +88,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
             /* ... will handle its own closing brace */
         }
         else if (tok.type == token::STR || tok.type == token::QSTR)
-            val = obj{ lex.strdup(tok.text) };
+            val = obj{ lex.string_pool.strdup(tok.text) };
         else if (tok.type == token::QDATE || tok.type == token::DATE) {
             /* for savegames, otherwise only on LHS (and never quoted) */
             val = obj{ date{ tok.text } };
@@ -117,6 +117,37 @@ void statement::print(FILE* f, uint indent) {
     fprintf(f, " = ");
     _v.print(f, indent);
     fprintf(f, "\n");
+}
+
+
+void obj::destroy() noexcept {
+    switch (type) {
+        case STRING:
+        case INTEGER:
+        case DATE:
+            break;
+        case BLOCK: data.up_block.~unique_ptr<block>(); break;
+        case LIST:  data.up_list.~unique_ptr<list>(); break;
+    }
+}
+
+
+obj& obj::operator=(obj&& other) {
+    if (this == &other) return *this; // guard against self-assignment
+
+    /* destroy our current resources, then move resources from other, and return new self */
+    destroy();
+    type = other.type;
+
+    switch (other.type) {
+        case STRING:  data.s = other.data.s; break;
+        case INTEGER: data.i = other.data.i; break;
+        case DATE:    data.d = other.data.d; break;
+        case BLOCK:   new (&data.up_block) unique_ptr<block>(std::move(other.data.up_block)); break;
+        case LIST:    new (&data.up_list)  unique_ptr<list>(std::move(other.data.up_list)); break;
+    }
+
+    return *this;
 }
 
 
@@ -160,7 +191,7 @@ list::list(parser& lex) {
         lex.next(&t);
 
         if (t.type == token::QSTR || t.type == token::STR)
-            vec.emplace_back( lex.strdup(t.text) );
+            vec.emplace_back( lex.string_pool.strdup(t.text) );
         else if (t.type == token::INTEGER)
             vec.emplace_back( atoi(t.text) );
         else if (t.type == token::OPEN) {

@@ -46,6 +46,8 @@ namespace pdx {
             return false;
         }
 
+        bool operator==(const date& e) { return y == e.y && m == e.y && d == e.d; }
+
         int16_t year()  const noexcept { return y; }
         int8_t  month() const noexcept { return m; }
         int8_t  day()   const noexcept { return d; }
@@ -58,7 +60,7 @@ namespace pdx {
 
     class obj {
         enum {
-            STRING = 0,
+            STRING,
             INTEGER,
             DATE,
             BLOCK,
@@ -72,20 +74,12 @@ namespace pdx {
             unique_ptr<block> up_block;
             unique_ptr<list>  up_list;
 
+            /* tell C++ that we'll manage the nontrivial union members (the smart pointers) outside of this union */
             data_union() {}
             ~data_union() {}
         } data;
 
-        void destroy() noexcept { // helper method for dtor & move-assignment operator
-            switch (type) {
-                case STRING:
-                case INTEGER:
-                case DATE:
-                    break;
-                case BLOCK: data.up_block.~unique_ptr<block>(); break;
-                case LIST:  data.up_list.~unique_ptr<list>(); break;
-            }
-        }
+        void destroy() noexcept; // helper for dtor & move-assignment
 
     public:
 
@@ -96,20 +90,7 @@ namespace pdx {
         obj(unique_ptr<list> up)  : type(LIST)    { new (&data.up_list) unique_ptr<list>(std::move(up)); }
 
         /* move-assignment operator */
-        obj& operator=(obj&& other) {
-            if (this == &other) return *this; // guard against self-assignment
-            destroy(); // destroy our current resources
-            /* move resources from other & return self */
-            type = other.type;
-            switch (other.type) {
-                case STRING:  data.s = other.data.s; break;
-                case INTEGER: data.i = other.data.i; break;
-                case DATE:    data.d = other.data.d; break;
-                case BLOCK:   new (&data.up_block) unique_ptr<block>(std::move(other.data.up_block)); break;
-                case LIST:    new (&data.up_list)  unique_ptr<list>(std::move(other.data.up_list)); break;
-            }
-            return *this;
-        }
+        obj& operator=(obj&& other);
 
         /* move-constructor (implemented via move-assignment) */
         obj(obj&& other) : obj() { *this = std::move(other); }
@@ -118,18 +99,24 @@ namespace pdx {
         ~obj() { destroy(); }
 
         /* data accessors (unchecked type) */
-        char*  as_c_str()   const noexcept { return data.s; }
+        char*  as_string()  const noexcept { return data.s; }
         int    as_integer() const noexcept { return data.i; }
         date   as_date()    const noexcept { return data.d; }
         block* as_block()   const noexcept { return data.up_block.get(); }
         list*  as_list()    const noexcept { return data.up_list.get(); }
 
         /* type accessors */
-        bool is_c_str()   const noexcept { return type == STRING; }
+        bool is_string()  const noexcept { return type == STRING; }
         bool is_integer() const noexcept { return type == INTEGER; }
         bool is_date()    const noexcept { return type == DATE; }
         bool is_block()   const noexcept { return type == BLOCK; }
         bool is_list()    const noexcept { return type == LIST; }
+
+        /* convenience equality operator overloads */
+        bool operator==(const char* s) const noexcept { return is_string() && strcmp(as_string(), s) == 0; }
+        bool operator==(const std::string& s) const noexcept { return is_string() && s == as_string(); }
+        bool operator==(int i) const noexcept { return is_integer() && as_integer() == i; }
+        bool operator==(date d) const noexcept { return is_date() && as_date() == d; }
 
         void print(FILE*, uint indent = 0);
     };
@@ -144,9 +131,6 @@ namespace pdx {
 
         const obj& key()   const noexcept { return _k; }
         const obj& value() const noexcept { return _v; }
-
-        bool key_eq(const char* s) const noexcept { return _k.is_c_str() && strcmp(_k.as_c_str(), s) == 0; }
-        bool key_eq(const std::string& s) const noexcept { return _k.is_c_str() && s == _k.as_c_str(); }
 
         void print(FILE*, uint indent = 0);
     };
@@ -198,36 +182,35 @@ namespace pdx {
         saved_token tok1;
         saved_token tok2;
 
-        cstr_pool<char> string_pool;
+        unique_ptr<block> up_root_block;
 
     protected:
         friend class block;
         friend class list;
 
-        char* strdup(const char* src) { return string_pool.strdup(src); }
-
-    public:
-        parser() = delete;
-        parser(const char* p) : lexer(p), state(NORMAL) {}
-        parser(const std::string& p) : parser(p.c_str()) {}
-        parser(const fs::path& p) : parser(p.string().c_str()) {}
-
-        /* allocate space for src, copy src, return pointer to copy. allocation is from string_pool associated
-         * with this parser (could theoretically be a parameter of parser, shared among more parsers, but eh).
-         * this practice allows us to cheaply allocate a bunch of small strings and even more cheaply deallocate
-         * all of them when this parser is destroyed.
-         */
+        cstr_pool<char> string_pool;
 
         void next(token*, bool eof_ok = false);
         void next_expected(token*, uint type);
         void unexpected_token(const token&) const;
         void save_and_lookahead(token*);
+
+    public:
+        parser() = delete;
+        parser(const char* p, bool is_save = false)
+            : lexer(p), state(NORMAL) { up_root_block = std::make_unique<block>(*this, true, is_save); }
+        parser(const std::string& p, bool is_save = false) : parser(p.c_str(), is_save) {}
+        parser(const fs::path& p, bool is_save = false) : parser(p.string().c_str(), is_save) {}
+
+        block* root_block() noexcept { return up_root_block.get(); }
     };
 
-    static const uint TIER_BARON = 1;
-    static const uint TIER_COUNT = 2;
-    static const uint TIER_DUKE = 3;
-    static const uint TIER_KING = 4;
+    /* misc. utility functions */
+
+    static const uint TIER_BARON   = 1;
+    static const uint TIER_COUNT   = 2;
+    static const uint TIER_DUKE    = 3;
+    static const uint TIER_KING    = 4;
     static const uint TIER_EMPEROR = 5;
 
     inline uint title_tier(const char* s) {
