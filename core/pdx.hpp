@@ -137,22 +137,22 @@ namespace pdx {
 
     class list {
         typedef std::vector<obj> vec_t;
-        vec_t vec;
+        vec_t _vec;
 
     public:
         list() = delete;
         list(parser&);
 
-        vec_t::size_type      size() const  { return vec.size(); }
-        vec_t::iterator       begin()       { return vec.begin(); }
-        vec_t::iterator       end()         { return vec.end(); }
-        vec_t::const_iterator begin() const { return vec.cbegin(); }
-        vec_t::const_iterator end() const   { return vec.cend(); }
+        vec_t::size_type      size() const  { return _vec.size(); }
+        vec_t::iterator       begin()       { return _vec.begin(); }
+        vec_t::iterator       end()         { return _vec.end(); }
+        vec_t::const_iterator begin() const { return _vec.cbegin(); }
+        vec_t::const_iterator end() const   { return _vec.cend(); }
     };
 
     class block {
         typedef std::vector<statement> vec_t;
-        vec_t vec;
+        vec_t _vec;
 
     public:
         block() { }
@@ -160,11 +160,11 @@ namespace pdx {
 
         void print(FILE*, uint indent = 0);
 
-        vec_t::size_type      size() const  { return vec.size(); }
-        vec_t::iterator       begin()       { return vec.begin(); }
-        vec_t::iterator       end()         { return vec.end(); }
-        vec_t::const_iterator begin() const { return vec.cbegin(); }
-        vec_t::const_iterator end() const   { return vec.cend(); }
+        vec_t::size_type      size() const  { return _vec.size(); }
+        vec_t::iterator       begin()       { return _vec.begin(); }
+        vec_t::iterator       end()         { return _vec.end(); }
+        vec_t::const_iterator begin() const { return _vec.cbegin(); }
+        vec_t::const_iterator end() const   { return _vec.cend(); }
     };
 
     class parser : public lexer {
@@ -177,18 +177,19 @@ namespace pdx {
             NORMAL, // read from lexer::next(...)
             TOK1,   // read from tok1, then tok2
             TOK2,   // read from tok2, then lexer::next()
-        } state;
+        } _state;
 
-        saved_token tok1;
-        saved_token tok2;
+        saved_token _tok1;
+        saved_token _tok2;
 
-        unique_ptr<block> up_root_block;
+        cstr_pool<char> _string_pool;
+        unique_ptr<block> _up_root_block;
 
     protected:
         friend class block;
         friend class list;
 
-        cstr_pool<char> string_pool;
+        char* strdup(const char* s) { return _string_pool.strdup(s); }
 
         void next(token*, bool eof_ok = false);
         void next_expected(token*, uint type);
@@ -198,11 +199,11 @@ namespace pdx {
     public:
         parser() = delete;
         parser(const char* p, bool is_save = false)
-            : lexer(p), state(NORMAL) { up_root_block = std::make_unique<block>(*this, true, is_save); }
+            : lexer(p), _state(NORMAL) { _up_root_block = std::make_unique<block>(*this, true, is_save); }
         parser(const std::string& p, bool is_save = false) : parser(p.c_str(), is_save) {}
         parser(const fs::path& p, bool is_save = false) : parser(p.string().c_str(), is_save) {}
 
-        block* root_block() noexcept { return up_root_block.get(); }
+        block* root_block() noexcept { return _up_root_block.get(); }
     };
 
     /* misc. utility functions */

@@ -37,7 +37,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
         obj key;
 
         if (tok.type == token::STR)
-            key = obj{ lex.string_pool.strdup(tok.text) };
+            key = obj{ lex.strdup(tok.text) };
         else if (tok.type == token::DATE)
             key = obj{ date{ tok.text } };
         else if (tok.type == token::INTEGER)
@@ -88,7 +88,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
             /* ... will handle its own closing brace */
         }
         else if (tok.type == token::STR || tok.type == token::QSTR)
-            val = obj{ lex.string_pool.strdup(tok.text) };
+            val = obj{ lex.strdup(tok.text) };
         else if (tok.type == token::QDATE || tok.type == token::DATE) {
             /* for savegames, otherwise only on LHS (and never quoted) */
             val = obj{ date{ tok.text } };
@@ -101,12 +101,12 @@ block::block(parser& lex, bool is_root, bool is_save) {
         // TODO: RHS (val) should support fixed-point decimal types; I haven't decided whether to make integers
         // and fixed-point decimal all use the same 64-bit type yet.
 
-        vec.emplace_back(key, val);
+        _vec.emplace_back(key, val);
     }
 }
 
 void block::print(FILE* f, uint indent) {
-    for (auto&& s : vec)
+    for (auto&& s : _vec)
         s.print(f, indent);
 }
 
@@ -191,11 +191,11 @@ list::list(parser& lex) {
         lex.next(&t);
 
         if (t.type == token::QSTR || t.type == token::STR)
-            vec.emplace_back( lex.string_pool.strdup(t.text) );
+            _vec.emplace_back( lex.strdup(t.text) );
         else if (t.type == token::INTEGER)
-            vec.emplace_back( atoi(t.text) );
+            _vec.emplace_back( atoi(t.text) );
         else if (t.type == token::OPEN) {
-            vec.emplace_back( std::make_unique<block>(lex) );
+            _vec.emplace_back( std::make_unique<block>(lex) );
         }
         else if (t.type != token::CLOSE)
             lex.unexpected_token(t);
@@ -220,24 +220,20 @@ void parser::unexpected_token(const token& t) const {
 
 
 void parser::next(token* p_tok, bool eof_ok) {
-
     while (1) {
-
-        if (state == NORMAL)
-            lexer::next(p_tok);
-        else if (state == TOK1) {
-            p_tok->type = tok1.type;
-            p_tok->text = tok1.text;
-            state = TOK2;
+        switch (_state) {
+            case NORMAL: lexer::next(p_tok); break;
+            case TOK1:
+                p_tok->type = _tok1.type;
+                p_tok->text = _tok1.text;
+                _state = TOK2;
+                break;
+            case TOK2:
+                p_tok->type = _tok2.type;
+                p_tok->text = _tok2.text;
+                _state = NORMAL;
+                break;
         }
-        else {
-            p_tok->type = tok2.type;
-            p_tok->text = tok2.text;
-            state = NORMAL;
-        }
-
-        /* debug */
-        //      printf("%s\n", p_tok->type_name());
 
         if (p_tok->type == token::END) {
             if (!eof_ok)
@@ -259,16 +255,16 @@ void parser::next(token* p_tok, bool eof_ok) {
 
 void parser::save_and_lookahead(token* p_tok) {
     /* save our two tokens of lookahead */
-    tok1.type = p_tok->type;
-    strcpy(tok1.text, p_tok->text); // buffer overflows are myths
+    _tok1.type = p_tok->type;
+    strcpy(_tok1.text, p_tok->text); // buffer overflows are myths
 
     next(p_tok);
 
-    tok2.type = p_tok->type;
-    strcpy(tok2.text, p_tok->text);
+    _tok2.type = p_tok->type;
+    strcpy(_tok2.text, p_tok->text);
 
     /* set lexer to read from the saved tokens first */
-    state = TOK1;
+    _state = TOK1;
 }
 
 date::date(const char* date_str, parser* p_lex) {
