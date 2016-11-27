@@ -14,94 +14,20 @@
 #include <string>
 #include <boost/filesystem.hpp>
 
+/* other imports into pdx namespace */
+#include "date.hpp"
+#include "vfs.hpp"
 
 namespace pdx {
 
     using std::unique_ptr;
-    namespace fs = boost::filesystem;
 
-    class vfs {
-        std::vector<fs::path> _path_stack;
-
-    public:
-        vfs(const fs::path& base_path) : _path_stack({ base_path }) {}
-        vfs() {}
-
-        void push_mod_path(const fs::path& p) { _path_stack.push_back(p); }
-
-        bool resolve_path(fs::path* p_real_path, const fs::path& virtual_path) const {
-            /* search path vector for a filesystem hit in reverse */
-            for (auto i = _path_stack.crbegin(); i != _path_stack.crend(); ++i)
-                if (fs::exists( *p_real_path = *i / virtual_path ))
-                    return true;
-            return false;
-        }
-
-        /* a more convenient accessor which auto-throws on a nonexistent path */
-        fs::path operator[](const fs::path& virtual_path) const {
-            fs::path p;
-            if (!resolve_path(&p, virtual_path))
-                throw std::runtime_error("Missing game file: " + virtual_path.string());
-            return p;
-        }
-
-        /* std::string / c-string convenience overloads */
-
-        bool resolve_path(fs::path* p_real_path, const std::string& virtual_path) const {
-            return resolve_path(p_real_path, fs::path(virtual_path));
-        }
-
-        bool resolve_path(fs::path* p_real_path, const char* virtual_path) const {
-            return resolve_path(p_real_path, fs::path(virtual_path));
-        }
-
-        fs::path operator[](const std::string& virtual_path) const { return (*this)[fs::path(virtual_path)]; }
-        fs::path operator[](const char* virtual_path) const        { return (*this)[fs::path(virtual_path)]; }
-    };
-
-    class parser;
-
-#pragma pack(push, 1)
-
-    struct date {
-        int16_t y;
-        int8_t  m;
-        int8_t  d;
-
-        date() : y(0), m(0), d(0) {}
-        date(int16_t year, int8_t month, int8_t day) : y(year), m(month), d(day) {}
-        date(const char*, parser* p_lex = nullptr);
-
-        bool operator<(date e) const noexcept {
-            /* note that since our binary representation is simpy a 32-bit unsigned integer
-             * and since our fields are MSB to LSB, we could just compare date_t as a uint,
-             * but this is the more correct pattern for multi-field comparison, and I don't
-             * feel the need to optimize this. :) */
-            if (y < e.y) return true;
-            if (e.y < y) return false;
-            if (m < e.m) return true;
-            if (e.m < y) return false;
-            if (d < e.d) return true;
-            if (e.d < d) return false;
-            return false;
-        }
-
-        bool operator==(const date& e) { return y == e.y && m == e.y && d == e.d; }
-
-        int16_t year()  const noexcept { return y; }
-        int8_t  month() const noexcept { return m; }
-        int8_t  day()   const noexcept { return d; }
-
-    private:
-        void throw_error(const parser* p_lex = nullptr);
-    };
-
-#pragma pack(pop)
+    /* OBJECT -- generic "any"-type parse tree data element */
 
     class block;
     class list;
 
-    class obj {
+    class object {
         enum {
             STRING,
             INTEGER,
@@ -126,20 +52,20 @@ namespace pdx {
 
     public:
 
-        obj(char* s = nullptr)    : type(STRING)  { data.s = s; }
-        obj(int i)                : type(INTEGER) { data.i = i; }
-        obj(date d)               : type(DATE)    { data.d = d; }
-        obj(unique_ptr<block> up) : type(BLOCK)   { new (&data.up_block) unique_ptr<block>(std::move(up)); }
-        obj(unique_ptr<list> up)  : type(LIST)    { new (&data.up_list) unique_ptr<list>(std::move(up)); }
+        object(char* s = nullptr)    : type(STRING)  { data.s = s; }
+        object(int i)                : type(INTEGER) { data.i = i; }
+        object(date d)               : type(DATE)    { data.d = d; }
+        object(unique_ptr<block> up) : type(BLOCK)   { new (&data.up_block) unique_ptr<block>(std::move(up)); }
+        object(unique_ptr<list> up)  : type(LIST)    { new (&data.up_list) unique_ptr<list>(std::move(up)); }
 
         /* move-assignment operator */
-        obj& operator=(obj&& other);
+        object& operator=(object&& other);
 
         /* move-constructor (implemented via move-assignment) */
-        obj(obj&& other) : obj() { *this = std::move(other); }
+        object(object&& other) : object() { *this = std::move(other); }
 
         /* destructor */
-        ~obj() { destroy(); }
+        ~object() { destroy(); }
 
         /* data accessors (unchecked type) */
         char*  as_string()  const noexcept { return data.s; }
@@ -164,22 +90,11 @@ namespace pdx {
         void print(FILE*, uint indent = 0);
     };
 
-    class statement {
-        obj _k;
-        obj _v;
 
-    public:
-        statement() = delete;
-        statement(obj& k, obj& v) : _k(std::move(k)), _v(std::move(v)) {}
-
-        const obj& key()   const noexcept { return _k; }
-        const obj& value() const noexcept { return _v; }
-
-        void print(FILE*, uint indent = 0);
-    };
+    /* LIST -- list of N objects */
 
     class list {
-        typedef std::vector<obj> vec_t;
+        typedef std::vector<object> vec_t;
         vec_t _vec;
 
     public:
@@ -192,6 +107,26 @@ namespace pdx {
         vec_t::const_iterator begin() const { return _vec.cbegin(); }
         vec_t::const_iterator end() const   { return _vec.cend(); }
     };
+
+
+    /* STATEMENT -- statements are pairs of objects */
+
+    class statement {
+        object _k;
+        object _v;
+
+    public:
+        statement() = delete;
+        statement(object& k, object& v) : _k(std::move(k)), _v(std::move(v)) {}
+
+        const object& key()   const noexcept { return _k; }
+        const object& value() const noexcept { return _v; }
+
+        void print(FILE*, uint indent = 0);
+    };
+
+
+    /* BLOCK -- blocks contain N statements */
 
     class block {
         typedef std::vector<statement> vec_t;
@@ -209,6 +144,9 @@ namespace pdx {
         vec_t::const_iterator begin() const { return _vec.cbegin(); }
         vec_t::const_iterator end() const   { return _vec.cend(); }
     };
+
+
+    /* PARSER -- construct a parse tree whose resources are owned by the parser via the parser's constructor */
 
     class parser : public lexer {
         struct saved_token : public token {
@@ -249,7 +187,8 @@ namespace pdx {
         block* root_block() noexcept { return _up_root_block.get(); }
     };
 
-    /* misc. utility functions */
+
+    /* MISC. UTILITY */
 
     static const uint TIER_BARON   = 1;
     static const uint TIER_COUNT   = 2;

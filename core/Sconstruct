@@ -3,7 +3,7 @@
 env = Environment()
 env.Append(CXXFLAGS="-Wall -Wextra -Wno-unused-function -Wno-unused-parameter -O2 --std=c++17")
 
-sources = ["main.cpp", "token.cpp", "lexer.cpp", "pdx.cpp"]
+sources = ["main.cpp", "token.cpp", "lexer.cpp", "pdx.cpp", "date.cpp"]
 sources += env.CXXFile('scanner.ll') # Our `flex` rules
 
 env.Program('ck2audit', sources, LIBS=["boost_program_options", "boost_filesystem", "boost_system"])

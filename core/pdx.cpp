@@ -34,14 +34,14 @@ block::block(parser& lex, bool is_root, bool is_save) {
             return;
         }
 
-        obj key;
+        object key;
 
         if (tok.type == token::STR)
-            key = obj{ lex.strdup(tok.text) };
+            key = object{ lex.strdup(tok.text) };
         else if (tok.type == token::DATE)
-            key = obj{ date{ tok.text } };
+            key = object{ date{ tok.text } };
         else if (tok.type == token::INTEGER)
-            key = obj{ atoi(tok.text) };
+            key = object{ atoi(tok.text) };
         else
             lex.unexpected_token(tok);
 
@@ -50,7 +50,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
         lex.next_expected(&tok, token::EQ);
 
         /* on to value... */
-        obj val;
+        object val;
         lex.next(&tok);
 
         if (tok.type == token::OPEN) {
@@ -63,7 +63,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
 
             if (tok.type == token::CLOSE) {
                 /* empty block */
-                val = obj{ std::make_unique<block>() };
+                val = object{ std::make_unique<block>() };
                 continue;
             }
             else if (tok.type == token::OPEN) {
@@ -81,20 +81,20 @@ block::block(parser& lex, bool is_root, bool is_save) {
             lex.save_and_lookahead(&tok);
 
             if (tok.type != token::EQ || double_open)
-                val = obj{ std::make_unique<list>(lex) }; // by God, this is (probably) a list!
+                val = object{ std::make_unique<list>(lex) }; // by God, this is (probably) a list!
             else
-                val = obj{ std::make_unique<block>(lex) }; // presumably block, so recurse
+                val = object{ std::make_unique<block>(lex) }; // presumably block, so recurse
 
             /* ... will handle its own closing brace */
         }
         else if (tok.type == token::STR || tok.type == token::QSTR)
-            val = obj{ lex.strdup(tok.text) };
+            val = object{ lex.strdup(tok.text) };
         else if (tok.type == token::QDATE || tok.type == token::DATE) {
             /* for savegames, otherwise only on LHS (and never quoted) */
-            val = obj{ date{ tok.text } };
+            val = object{ date{ tok.text } };
         }
         else if (tok.type == token::INTEGER)
-            val = obj{ atoi(tok.text) };
+            val = object{ atoi(tok.text) };
         else
             lex.unexpected_token(tok);
 
@@ -120,7 +120,7 @@ void statement::print(FILE* f, uint indent) {
 }
 
 
-void obj::destroy() noexcept {
+void object::destroy() noexcept {
     switch (type) {
         case STRING:
         case INTEGER:
@@ -132,7 +132,7 @@ void obj::destroy() noexcept {
 }
 
 
-obj& obj::operator=(obj&& other) {
+object& object::operator=(object&& other) {
     if (this == &other) return *this; // guard against self-assignment
 
     /* destroy our current resources, then move resources from other, and return new self */
@@ -151,7 +151,7 @@ obj& obj::operator=(obj&& other) {
 }
 
 
-void obj::print(FILE* f, uint indent) {
+void object::print(FILE* f, uint indent) {
 
     if (type == STRING) {
         if (strpbrk(data.s, " \t\xA0\r\n\'")) // not the only time to quote, but whatever
@@ -222,7 +222,9 @@ void parser::unexpected_token(const token& t) const {
 void parser::next(token* p_tok, bool eof_ok) {
     while (1) {
         switch (_state) {
-            case NORMAL: lexer::next(p_tok); break;
+            case NORMAL:
+                lexer::next(p_tok);
+                break;
             case TOK1:
                 p_tok->type = _tok1.type;
                 p_tok->text = _tok1.text;
@@ -265,41 +267,6 @@ void parser::save_and_lookahead(token* p_tok) {
 
     /* set lexer to read from the saved tokens first */
     _state = TOK1;
-}
-
-date::date(const char* date_str, parser* p_lex) {
-    /* FIXME: I thought this would be cleaner and more standard than using strsep, but I was wrong.
-     * current implementation implies a lot of unnecessary copying/allocation (even for an awesome
-     * compiler). that's why the date_str parameter is kept mutable in the spec -- so that I can
-     * return this to an strpbrk-based inline split. */
-
-    const std::string s{ date_str };
-
-    typedef boost::tokenizer< boost::char_separator<char> > tokenizer_t;
-    tokenizer_t tok(s, boost::char_separator<char>(". "));
-
-    auto t = tok.begin();
-    if (t == tok.end()) throw_error(p_lex);
-    y = atoi(t->c_str());
-
-    ++t;
-    if (t == tok.end()) throw_error(p_lex);
-    m = atoi(t->c_str());
-
-    ++t;
-    if (t == tok.end()) throw_error(p_lex);
-    d = atoi(t->c_str());
-
-    if (++t != tok.end()) throw_error(p_lex);
-}
-
-void date::throw_error(const parser* p_lex) {
-    y = 0; m = 0; d = 0;
-
-    if (p_lex != nullptr)
-        throw va_error("Malformed date-type expression at %s:L%d", p_lex->pathname(), p_lex->line());
-    else
-        throw va_error("Malformed date-type expression");
 }
 
 
