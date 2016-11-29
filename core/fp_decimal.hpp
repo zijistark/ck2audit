@@ -11,40 +11,10 @@
 
 #pragma once
 #include "pdx_common.hpp"
-#include <string>
 
 
 _PDX_NAMESPACE_BEGIN
 
-/* generate_int_array< N, template<size_t> F >::result
- * - N is the number of elements in the array result::data
- * - F is a parameterized type s.t. F<I>::value will be the value of result::data[I]
- *
- * template metaprogramming technique for constructing const int arrays at compile time -- could easily be generalized
- * to any constant value type */
-template<int... args> struct IntArrayHolder {
-    static const int data[sizeof...(args)];
-};
-
-template<int... args>
-const int IntArrayHolder<args...>::data[sizeof...(args)] = { args... };
-
-// recursive case
-template<size_t N, template<size_t> class F, int... args>
-struct generate_int_array_impl {
-    typedef typename generate_int_array_impl<N-1, F, F<N>::value, args...>::result result;
-};
-
-// base case
-template<template<size_t> class F, int... args>
-struct generate_int_array_impl<0, F, args...> {
-    typedef IntArrayHolder<F<0>::value, args...> result;
-};
-
-template<size_t N, template<size_t> class F>
-struct generate_int_array {
-    typedef typename generate_int_array_impl<N-1, F>::result result;
-};
 
 class parser;
 
@@ -68,9 +38,7 @@ public:
     /* min and max possible values for the integral component */
     static const int32_t integral_max = (INT32_MAX - scale - INT32_MAX % scale) / scale;
     static const int32_t integral_min = (INT32_MIN + scale - INT32_MIN % scale) / scale;
-    static const int32_t invalid_number = INT32_MIN; // cannot be represented in any fp_decimal<D in 1..9>, so we'll use it
-
-private:
+    static const int32_t invalid = INT32_MIN; // cannot be represented in any fp_decimal<D in 1..9>, so we'll use it as our NaN
 
 public:
     fp_decimal(const char* src, const parser* p_parser = nullptr);
@@ -83,18 +51,25 @@ public:
     double to_double() const noexcept { return double(_m) / scale; }
     double to_float()  const noexcept { return float(_m) / scale; }
 
-    bool operator<(const self_t& o)  const noexcept { return _m < o._m; }
-    bool operator>(const self_t& o)  const noexcept { return _m > o._m; }
+    bool operator< (const self_t& o) const noexcept { return _m < o._m; }
+    bool operator> (const self_t& o) const noexcept { return _m > o._m; }
     bool operator<=(const self_t& o) const noexcept { return _m <= o._m; }
     bool operator>=(const self_t& o) const noexcept { return _m >= o._m; }
     bool operator==(const self_t& o) const noexcept { return _m == o._m; }
     bool operator!=(const self_t& o) const noexcept { return _m != o._m; }
 
+    bool operator< (int i) const noexcept { return _m < i * scale; }
+    bool operator> (int i) const noexcept { return _m > i * scale; }
+    bool operator<=(int i) const noexcept { return _m <= i * scale; }
+    bool operator>=(int i) const noexcept { return _m >= i * scale; }
+    bool operator==(int i) const noexcept { return _m == i * scale; }
+    bool operator!=(int i) const noexcept { return _m != i * scale; }
+
 private:
     void throw_range_error(int64_t val, const parser* p_parser) const;
 
     /* fractional digit power const-tbl */
-    template<size_t I> struct fractional_digit_power { enum { value = exp10<FractionalDigits-I-1>::value }; };
+    template<size_t I> struct fractional_digit_power { enum { value = exp10< FractionalDigits - I - 1 >::value }; };
     typedef typename generate_int_array<FractionalDigits, fractional_digit_power>::result fractional_digit_powers;
 };
 

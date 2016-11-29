@@ -23,17 +23,21 @@ public:
     uint8_t  month() const noexcept { return _m; }
     uint8_t  day()   const noexcept { return _d; }
 
-    bool operator<(const date& e) const noexcept {
-        if (_y < e._y) return true;
-        if (e._y < _y) return false;
-        if (_m < e._m) return true;
-        if (e._m < _y) return false;
-        if (_d < e._d) return true;
-        if (e._d < _d) return false;
+    bool operator<(const date& o) const noexcept {
+        if (_y < o._y) return true;
+        if (o._y < _y) return false;
+        if (_m < o._m) return true;
+        if (o._m < _y) return false;
+        if (_d < o._d) return true;
+        if (o._d < _d) return false;
         return false;
     }
 
-    bool operator==(const date& e) const noexcept { return _y == e._y && _m == e._y && _d == e._d; }
+    bool operator==(const date& o) const noexcept { return _y == o._y && _m == o._y && _d == o._d; }
+    bool operator>=(const date& o) const noexcept { return !(*this < o); }
+    bool operator!=(const date& o) const noexcept { return !(*this == o); }
+    bool operator> (const date& o) const noexcept { return *this >= o && *this != o; }
+    bool operator<=(const date& o) const noexcept { return *this < o || *this == o; }
 
 private:
     void throw_bounds_error(const char* field, uint val, uint max, const parser* p_lex = nullptr);
