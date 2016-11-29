@@ -10,7 +10,7 @@
  */
 
 #pragma once
-#include "config.hpp"
+#include "pdx_common.hpp"
 #include <string>
 
 
@@ -55,6 +55,7 @@ template <>         struct exp10<0> { enum { value = 1 }; }; // base case
 /* fp_decimal */
 template<uint FractionalDigits = 3>
 class fp_decimal {
+    typedef fp_decimal<FractionalDigits> self_t;
 
     static_assert(FractionalDigits > 0, "fp_decimal cannot be used as an integer (no fractional digits)");
     static_assert(9 >= FractionalDigits, "fp_decimal cannot represent more than 9 fractional digits");
@@ -67,17 +68,27 @@ public:
     /* min and max possible values for the integral component */
     static const int32_t integral_max = (INT32_MAX - scale - INT32_MAX % scale) / scale;
     static const int32_t integral_min = (INT32_MIN + scale - INT32_MIN % scale) / scale;
+    static const int32_t invalid_number = INT32_MIN; // cannot be represented in any fp_decimal<D in 1..9>, so we'll use it
 
 private:
 
 public:
     fp_decimal(const char* src, const parser* p_parser = nullptr);
-    fp_decimal(double f) : _m( f * scale ) { }
+    fp_decimal(double f) : _m( f * scale + 0.5 )  {}
+    fp_decimal(float f)  : _m( f * scale + 0.5f ) {}
 
     int32_t integral()   const noexcept { return _m / scale; }
     int32_t fractional() const noexcept { return _m % scale; }
 
-    double to_double() const { return integral() + (double)fractional() / scale; }
+    double to_double() const noexcept { return double(_m) / scale; }
+    double to_float()  const noexcept { return float(_m) / scale; }
+
+    bool operator<(const self_t& o)  const noexcept { return _m < o._m; }
+    bool operator>(const self_t& o)  const noexcept { return _m > o._m; }
+    bool operator<=(const self_t& o) const noexcept { return _m <= o._m; }
+    bool operator>=(const self_t& o) const noexcept { return _m >= o._m; }
+    bool operator==(const self_t& o) const noexcept { return _m == o._m; }
+    bool operator!=(const self_t& o) const noexcept { return _m != o._m; }
 
 private:
     void throw_range_error(int64_t val, const parser* p_parser) const;

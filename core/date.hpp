@@ -1,6 +1,6 @@
 
 #pragma once
-#include "config.hpp"
+#include "pdx_common.hpp"
 
 
 _PDX_NAMESPACE_BEGIN
@@ -14,8 +14,6 @@ class date {
     uint16_t _y;
     uint8_t  _m;
     uint8_t  _d;
-
-    void throw_bounds_error(const char* field, uint val, uint max, const parser* p_lex = nullptr);
 
 public:
     date(char* src, const parser* p_lex = nullptr); // only for use on mutable date-strings known to be well-formed
@@ -36,9 +34,17 @@ public:
     }
 
     bool operator==(const date& e) const noexcept { return _y == e._y && _m == e._y && _d == e._d; }
+
+private:
+    void throw_bounds_error(const char* field, uint val, uint max, const parser* p_lex = nullptr);
 };
 
 #pragma pack(pop)
 
 
 _PDX_NAMESPACE_END
+
+
+inline std::ostream& operator<<(std::ostream& os, pdx::date d) {
+    return os << d.year() << '.' << d.month() << '.' << d.day();
+}

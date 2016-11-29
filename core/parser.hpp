@@ -1,7 +1,7 @@
 // -*- c++ -*-
 
 #pragma once
-#include "config.hpp"
+#include "pdx_common.hpp"
 
 #include "cstr_pool.hpp"
 #include "date.hpp"
