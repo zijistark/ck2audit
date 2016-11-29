@@ -77,8 +77,13 @@ int main(int argc, const char** argv) {
 
         /* done with program option processing */
 
-        pdx::parser parser(vfs["common/landed_titles/swmh_landed_titles.txt"]);
-        parser.root_block()->print(stdout);
+        char buf[32];
+        strcpy(buf, "12345.1");
+        pdx::fp_decimal<3> fp(buf);
+        cout << fp << endl;
+
+        // pdx::parser parser(vfs["common/landed_titles/swmh_landed_titles.txt"]);
+        // parser.root_block()->print(stdout);
     }
     catch (const exception& e) {
         cerr << "fatal: " << e.what() << endl;

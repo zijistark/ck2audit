@@ -19,7 +19,7 @@ DATE    [0-9]{1,4}\.[0-9]{1,2}\.[0-9]{1,2}
 
 {DATE}          { return token::DATE; }
 "\""{DATE}"\""  { return token::QDATE; }
-"-"?{D}+"."{D}+ { return token::DECIMAL; }
+"-"?{D}+"."{D}* { return token::DECIMAL; }
 "-"?{D}+        { return token::INTEGER; }
 "="             { return token::EQ; }
 "{"             { return token::OPEN; }
