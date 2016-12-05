@@ -1,24 +1,29 @@
 // -*- c++ -*-
 
 #pragma once
+#include "pdx_common.hpp"
 
 #include <cstdio>
 #include <string>
 #include <memory>
 #include <boost/filesystem.hpp>
 
-namespace fs = boost::filesystem;
+#include "file_location.hpp"
 
-typedef unsigned int uint;
+
+_PDX_NAMESPACE_BEGIN
+
+
+namespace fs = boost::filesystem;
 struct token;
+
 
 class lexer {
     typedef std::unique_ptr<std::FILE, int (*)(std::FILE *)> unique_file_ptr;
     unique_file_ptr _f;
 
     /* position of last-lexed token */
-    uint _line;
-    const char* _pathname;
+    file_location _location;
 
 public:
     lexer() = delete;
@@ -28,6 +33,10 @@ public:
 
     bool next(token* p_tok);
 
-    const char* pathname() const noexcept { return _pathname; }
-    uint line() const noexcept { return _line; }
+    const char* pathname() const noexcept { return _location.pathname(); }
+    uint line() const noexcept { return _location.line(); }
+    const file_location& location() const noexcept { return _location; }
 };
+
+
+_PDX_NAMESPACE_END

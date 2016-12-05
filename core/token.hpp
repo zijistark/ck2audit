@@ -1,8 +1,10 @@
 // -*- c++ -*-
 
 #pragma once
+#include "pdx_common.hpp"
 
-typedef unsigned int uint;
+
+_PDX_NAMESPACE_BEGIN
 
 
 struct token {
@@ -31,3 +33,6 @@ struct token {
     token() {}
     token(uint _type, char* _text) : type(_type), text(_text) {}
 };
+
+
+_PDX_NAMESPACE_END

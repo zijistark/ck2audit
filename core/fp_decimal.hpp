@@ -12,11 +12,12 @@
 #pragma once
 #include "pdx_common.hpp"
 
+#include "file_location.hpp"
+#include "error_queue.hpp"
+
 
 _PDX_NAMESPACE_BEGIN
 
-
-class parser;
 
 /* exp10<N> -- static computation of the Nth power of 10 */
 template <size_t N> struct exp10    { enum { value = 10 * exp10<N-1>::value }; }; // recursive case
@@ -41,15 +42,16 @@ public:
     static const int32_t invalid = INT32_MIN; // cannot be represented in any fp_decimal<D in 1..9>, so we'll use it as our NaN
 
 public:
-    fp_decimal(const char* src, const parser* p_parser = nullptr);
+    fp_decimal(const char* src, const file_location&, error_queue&);
     fp_decimal(double f) : _m( f * scale + 0.5 )  {}
     fp_decimal(float f)  : _m( f * scale + 0.5f ) {}
+    fp_decimal(int i)    : _m( i * scale ) {}
 
     int32_t integral()   const noexcept { return _m / scale; }
     int32_t fractional() const noexcept { return _m % scale; }
 
     double to_double() const noexcept { return double(_m) / scale; }
-    double to_float()  const noexcept { return float(_m) / scale; }
+    float  to_float()  const noexcept { return float(_m) / scale; }
 
     bool operator< (const self_t& o) const noexcept { return _m < o._m; }
     bool operator> (const self_t& o) const noexcept { return _m > o._m; }
@@ -66,8 +68,6 @@ public:
     bool operator!=(int i) const noexcept { return _m != i * scale; }
 
 private:
-    void throw_range_error(int64_t val, const parser* p_parser) const;
-
     /* fractional digit power const-tbl */
     template<size_t I> struct fractional_digit_power { enum { value = exp10< FractionalDigits - I - 1 >::value }; };
     typedef typename generate_int_array<FractionalDigits, fractional_digit_power>::result fractional_digit_powers;
@@ -77,13 +77,12 @@ private:
 _PDX_NAMESPACE_END
 
 
-#include "parser.hpp"
-#include "error.hpp"
 #include <cstring>
 #include <cstdlib>
 #include <iomanip>
 
-template<uint D>
+
+template<unsigned int D>
 std::ostream& operator<<(std::ostream& os, pdx::fp_decimal<D> fp) {
     os << fp.integral();
 
@@ -105,7 +104,7 @@ _PDX_NAMESPACE_BEGIN
  * DECIMAL: -?[0-9]+\.[0-9]*
  */
 template<uint D>
-fp_decimal<D>::fp_decimal(const char* src, const parser* p_parser) {
+fp_decimal<D>::fp_decimal(const char* src, const file_location& loc, error_queue& errq) {
 
     bool is_negative = false;
     const char* s_i = src;
@@ -127,7 +126,7 @@ fp_decimal<D>::fp_decimal(const char* src, const parser* p_parser) {
     /* parse integral component of s_i */
     int64_t i = 0;
     {
-
+        int overflow = 0;
         int power = 1;
 
         for (const char* p = s_radix_pt - 1; p >= s_i; --p) {
@@ -135,13 +134,14 @@ fp_decimal<D>::fp_decimal(const char* src, const parser* p_parser) {
             assert(0 <= d && d <= 9); // guaranteed by DECIMAL token
             i += power * d;
             power *= 10;
+            overflow |= (is_negative) ? i < integral_min : i > integral_max;
         }
-    }
 
-    /* enforce integral bounds */
-    // FIXME: this too should be a non-critical error (and thus not an exception)
-    if (i < integral_min || i > integral_max)
-        throw_range_error(i, p_parser);
+        if (overflow)
+            errq.enqueue(loc, "Integral value is too big in decimal number -- supported range: [%d, %d]",
+                         integral_min+0, integral_max+0);
+
+    }
 
     /* parse fractional component s_f */
     int32_t f = 0;
@@ -173,26 +173,18 @@ fp_decimal<D>::fp_decimal(const char* src, const parser* p_parser) {
         }
 
 
-        if (false && *p) {
-            /* emit some kind of non-critical error (not an exception) to the parser so that it can warn about
-             * data truncation due to insufficient fractional digits */
+        if (*p) {
+            /* assuming *p is a digit (guaranteed by DECIMAL token), then:
+             * data truncation due to insufficient fractional digits in representation */
+            errq.enqueue(error::priority::WARNING, loc,
+                         "Fractional value '%s' is too big in decimal number -- supported range: [0, %d]; value truncated",
+                         s_f, scale - 1);
         }
     }
 
     /* done */
     _m = (is_negative) ? i * -scale - f
                        : i * scale + f;
-}
-
-
-template<uint D>
-void fp_decimal<D>::throw_range_error(int64_t val, const parser* p_parser) const {
-    if (p_parser != nullptr)
-        throw va_error("Integral value %ld is too big (supported range: [%d, %d]) in decimal number at %s:L%d",
-                       val, integral_min, integral_max, p_parser->pathname(), p_parser->line());
-    else
-        throw va_error("Integral value %ld is too big (supported range: [%d, %d]) in decimal number",
-                       val, integral_min, integral_max);
 }
 
 

@@ -790,52 +790,52 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 YY_RULE_SETUP
 #line 20 "scanner.ll"
-{ return token::DATE; }
+{ return pdx::token::DATE; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
 #line 21 "scanner.ll"
-{ return token::QDATE; }
+{ return pdx::token::QDATE; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
 #line 22 "scanner.ll"
-{ return token::DECIMAL; }
+{ return pdx::token::DECIMAL; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
 #line 23 "scanner.ll"
-{ return token::INTEGER; }
+{ return pdx::token::INTEGER; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
 #line 24 "scanner.ll"
-{ return token::EQ; }
+{ return pdx::token::EQ; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
 #line 25 "scanner.ll"
-{ return token::OPEN; }
+{ return pdx::token::OPEN; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
 #line 26 "scanner.ll"
-{ return token::CLOSE; }
+{ return pdx::token::CLOSE; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
 #line 27 "scanner.ll"
-{ return token::STR; }
+{ return pdx::token::STR; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
 #line 28 "scanner.ll"
-{ return token::QSTR; }
+{ return pdx::token::QSTR; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
 #line 29 "scanner.ll"
-{ return token::COMMENT; }
+{ return pdx::token::COMMENT; }
 	YY_BREAK
 case 11:
 /* rule 11 can match eol */
@@ -846,7 +846,7 @@ YY_RULE_SETUP
 case 12:
 YY_RULE_SETUP
 #line 31 "scanner.ll"
-{ return token::FAIL; }
+{ return pdx::token::FAIL; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP

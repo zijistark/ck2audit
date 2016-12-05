@@ -3,9 +3,11 @@
 #pragma once
 #include "pdx_common.hpp"
 
+#include "error_queue.hpp"
 #include "cstr_pool.hpp"
-#include "date.hpp"
 #include "lexer.hpp"
+#include "date.hpp"
+#include "fp_decimal.hpp"
 #include "token.hpp"
 #include "error.hpp"
 
@@ -21,6 +23,8 @@ _PDX_NAMESPACE_BEGIN
 
 using std::unique_ptr;
 
+typedef fp_decimal<3> fp3;
+
 /* OBJECT -- generic "any"-type parse tree data element */
 
 class block;
@@ -31,18 +35,20 @@ class object {
         STRING,
         INTEGER,
         DATE,
+        DECIMAL,
         BLOCK,
         LIST
     } type;
 
     union data_union {
-        char*  s;
-        int    i;
-        date   d;
+        char* s;
+        int   i;
+        date  d;
+        fp3   f;
         unique_ptr<block> up_block;
         unique_ptr<list>  up_list;
 
-        /* tell C++ that we'll manage the nontrivial union members (the smart pointers) outside of this union */
+        /* tell C++ that we'll manage the nontrivial union members outside of this union */
         data_union() {}
         ~data_union() {}
     } data;
@@ -54,6 +60,7 @@ public:
     object(char* s = nullptr)    : type(STRING)  { data.s = s; }
     object(int i)                : type(INTEGER) { data.i = i; }
     object(date d)               : type(DATE)    { data.d = d; }
+    object(fp3 f)                : type(DECIMAL) { data.f = f; }
     object(unique_ptr<block> up) : type(BLOCK)   { new (&data.up_block) unique_ptr<block>(std::move(up)); }
     object(unique_ptr<list> up)  : type(LIST)    { new (&data.up_list) unique_ptr<list>(std::move(up)); }
 
@@ -66,25 +73,30 @@ public:
     /* destructor */
     ~object() { destroy(); }
 
-    /* data accessors (unchecked type) */
-    char*  as_string()  const noexcept { return data.s; }
-    int    as_integer() const noexcept { return data.i; }
-    date   as_date()    const noexcept { return data.d; }
-    block* as_block()   const noexcept { return data.up_block.get(); }
-    list*  as_list()    const noexcept { return data.up_list.get(); }
-
     /* type accessors */
     bool is_string()  const noexcept { return type == STRING; }
     bool is_integer() const noexcept { return type == INTEGER; }
     bool is_date()    const noexcept { return type == DATE; }
+    bool is_decimal() const noexcept { return type == DECIMAL; }
     bool is_block()   const noexcept { return type == BLOCK; }
     bool is_list()    const noexcept { return type == LIST; }
+    bool is_number()  const noexcept { return is_integer() || is_decimal(); }
+
+    /* data accessors (unchecked type) */
+    char*  as_string()  const noexcept { return data.s; }
+    int    as_integer() const noexcept { return data.i; }
+    date   as_date()    const noexcept { return data.d; }
+    fp3    as_decimal() const noexcept { return data.f; }
+    block* as_block()   const noexcept { return data.up_block.get(); }
+    list*  as_list()    const noexcept { return data.up_list.get(); }
+    fp3    as_number()  const noexcept { return (is_decimal()) ? data.f : fp3(data.i); }
 
     /* convenience equality operator overloads */
-    bool operator==(const char* s) const noexcept { return is_string() && strcmp(as_string(), s) == 0; }
+    bool operator==(const char* s)        const noexcept { return is_string() && strcmp(as_string(), s) == 0; }
     bool operator==(const std::string& s) const noexcept { return is_string() && s == as_string(); }
-    bool operator==(int i) const noexcept { return is_integer() && as_integer() == i; }
+    bool operator==(int i)  const noexcept { return is_integer() && as_integer() == i; }
     bool operator==(date d) const noexcept { return is_date() && as_date() == d; }
+    bool operator==(fp3 f)  const noexcept { return is_number() && as_number() == f; }
 
     void print(FILE*, uint indent = 0);
 };
@@ -164,6 +176,7 @@ class parser : public lexer {
 
     cstr_pool<char> _string_pool;
     unique_ptr<block> _up_root_block;
+    error_queue _errors;
 
 protected:
     friend class block;
@@ -184,6 +197,7 @@ public:
     parser(const fs::path& p, bool is_save = false) : parser(p.string().c_str(), is_save) {}
 
     block* root_block() noexcept { return _up_root_block.get(); }
+    error_queue& errors() noexcept { return _errors; }
 };
 
 

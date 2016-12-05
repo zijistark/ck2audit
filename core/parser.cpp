@@ -6,7 +6,8 @@
 #include <ctype.h>
 
 
-using namespace pdx;
+_PDX_NAMESPACE_BEGIN
+
 
 block::block(parser& lex, bool is_root, bool is_save) {
 
@@ -88,10 +89,10 @@ block::block(parser& lex, bool is_root, bool is_save) {
         }
         else if (tok.type == token::STR || tok.type == token::QSTR)
             val = object{ lex.strdup(tok.text) };
-        else if (tok.type == token::QDATE || tok.type == token::DATE) {
-            /* for savegames, otherwise only on LHS (and never quoted) */
+        else if (tok.type == token::QDATE || tok.type == token::DATE)
             val = object{ date{ tok.text } };
-        }
+        else if (tok.type == token::DECIMAL)
+            val = object{ fp3{ tok.text, lex.location(), lex.errors() } };
         else if (tok.type == token::INTEGER)
             val = object{ atoi(tok.text) };
         else
@@ -124,6 +125,7 @@ void object::destroy() noexcept {
         case STRING:
         case INTEGER:
         case DATE:
+        case DECIMAL:
             break;
         case BLOCK: data.up_block.~unique_ptr<block>(); break;
         case LIST:  data.up_list.~unique_ptr<list>(); break;
@@ -142,6 +144,7 @@ object& object::operator=(object&& other) {
         case STRING:  data.s = other.data.s; break;
         case INTEGER: data.i = other.data.i; break;
         case DATE:    data.d = other.data.d; break;
+        case DECIMAL: data.f = other.data.f; break;
         case BLOCK:   new (&data.up_block) unique_ptr<block>(std::move(other.data.up_block)); break;
         case LIST:    new (&data.up_list)  unique_ptr<list>(std::move(other.data.up_list)); break;
     }
@@ -193,6 +196,9 @@ list::list(parser& lex) {
             _vec.emplace_back( lex.strdup(t.text) );
         else if (t.type == token::INTEGER)
             _vec.emplace_back( atoi(t.text) );
+        else if (t.type == token::DECIMAL) {
+            _vec.emplace_back( fp3{ t.text, lex.location(), lex.errors() } );
+        }
         else if (t.type == token::OPEN) {
             _vec.emplace_back( std::make_unique<block>(lex) );
         }
@@ -272,7 +278,7 @@ void parser::save_and_lookahead(token* p_tok) {
 /* not handled directly by scanner because there are some things that look like titles
      and are not, but these aberrations (e.g., mercenary composition tags) only appear on
      the RHS of statements. */
-bool pdx::looks_like_title(const char* s) {
+bool looks_like_title(const char* s) {
     if (strlen(s) < 3)
         return false;
 
@@ -287,3 +293,6 @@ bool pdx::looks_like_title(const char* s) {
 
     return true;
 }
+
+
+_PDX_NAMESPACE_END

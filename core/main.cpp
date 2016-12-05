@@ -77,13 +77,15 @@ int main(int argc, const char** argv) {
 
         /* done with program option processing */
 
+        pdx::error_queue errors;
+        pdx::file_location loc("<null>", 0);
         char buf[32];
         strcpy(buf, "12345.1");
-        pdx::fp_decimal<3> fp(buf);
+        pdx::fp_decimal<3> fp(buf, loc, errors);
         cout << fp << endl;
 
-        // pdx::parser parser(vfs["common/landed_titles/swmh_landed_titles.txt"]);
-        // parser.root_block()->print(stdout);
+        pdx::parser parser(vfs["common/landed_titles/swmh_landed_titles.txt"]);
+        parser.root_block()->print(stdout);
     }
     catch (const exception& e) {
         cerr << "fatal: " << e.what() << endl;

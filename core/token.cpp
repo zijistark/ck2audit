@@ -1,7 +1,7 @@
 
 #include "token.hpp"
 
-const char* token::TYPE_MAP[] = {
+const char* pdx::token::TYPE_MAP[] = {
     "EOF",
     "INTEGER",
     "EQ",

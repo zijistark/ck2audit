@@ -17,17 +17,17 @@ QSTR    \"[^"\n]*\"
 DATE    [0-9]{1,4}\.[0-9]{1,2}\.[0-9]{1,2}
 %%
 
-{DATE}          { return token::DATE; }
-"\""{DATE}"\""  { return token::QDATE; }
-"-"?{D}+"."{D}* { return token::DECIMAL; }
-"-"?{D}+        { return token::INTEGER; }
-"="             { return token::EQ; }
-"{"             { return token::OPEN; }
-"}"             { return token::CLOSE; }
-{STR}           { return token::STR; }
-{QSTR}          { return token::QSTR; }
-"#".*           { return token::COMMENT; }
+{DATE}          { return pdx::token::DATE; }
+"\""{DATE}"\""  { return pdx::token::QDATE; }
+"-"?{D}+"."{D}* { return pdx::token::DECIMAL; }
+"-"?{D}+        { return pdx::token::INTEGER; }
+"="             { return pdx::token::EQ; }
+"{"             { return pdx::token::OPEN; }
+"}"             { return pdx::token::CLOSE; }
+{STR}           { return pdx::token::STR; }
+{QSTR}          { return pdx::token::QSTR; }
+"#".*           { return pdx::token::COMMENT; }
 {WS}+           /* skip */
-.               { return token::FAIL; }
+.               { return pdx::token::FAIL; }
 
 %%

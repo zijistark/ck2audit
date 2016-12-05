@@ -6,10 +6,12 @@
 #include "error.hpp"
 
 
+_PDX_NAMESPACE_BEGIN
+
+
 lexer::lexer(const char* pathname)
     : _f( std::fopen(pathname, "rb"), std::fclose ),
-      _line(0),
-      _pathname(pathname) {
+      _location(pathname, 0) {
 
     if (_f.get() == nullptr)
         throw va_error("Could not open file: %s", pathname);
@@ -25,7 +27,7 @@ bool lexer::next(token* p_tok) {
     if (( type = yylex() ) == 0) {
         /* EOF, so close our filehandle, and signal EOF */
         _f.reset();
-        _line = yylineno;
+        _location._line = yylineno;
         p_tok->type = token::END;
         p_tok->text = 0;
         yyin = nullptr;
@@ -38,7 +40,7 @@ bool lexer::next(token* p_tok) {
        yylineno contains line number,
        type contains token ID */
 
-    _line = yylineno;
+    _location._line = yylineno;
     p_tok->type = type;
 
     if (type == token::QSTR || type == token::QDATE) {
@@ -65,3 +67,7 @@ bool lexer::next(token* p_tok) {
 
     return true;
 }
+
+
+
+_PDX_NAMESPACE_END
