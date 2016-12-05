@@ -3,6 +3,7 @@
 #include "token.hpp"
 #include "error.hpp"
 
+#include <iomanip>
 #include <ctype.h>
 
 
@@ -105,20 +106,6 @@ block::block(parser& lex, bool is_root, bool is_save) {
     }
 }
 
-void block::print(FILE* f, uint indent) {
-    for (auto&& s : _vec)
-        s.print(f, indent);
-}
-
-
-void statement::print(FILE* f, uint indent) {
-    fprintf(f, "%*s", indent, "");
-    _k.print(f, indent);
-    fprintf(f, " = ");
-    _v.print(f, indent);
-    fprintf(f, "\n");
-}
-
 
 void object::destroy() noexcept {
     switch (type) {
@@ -152,39 +139,6 @@ object& object::operator=(object&& other) {
     return *this;
 }
 
-
-void object::print(FILE* f, uint indent) {
-
-    if (type == STRING) {
-        if (strpbrk(data.s, " \t\xA0\r\n\'")) // not the only time to quote, but whatever
-            fprintf(f, "\"%s\"", data.s);
-        else
-            fprintf(f, "%s", data.s);
-    }
-    else if (type == INTEGER)
-        fprintf(f, "%d", data.i);
-//        else if (type == DECIMAL)
-//            fprintf(f, "%s", data.s);
-    else if (type == DATE)
-        fprintf(f, "%s", data.s);
-    else if (type == BLOCK) {
-        fprintf(f, "{\n");
-        data.up_block->print(f, indent+4);
-        fprintf(f, "%*s}", indent, "");
-    }
-    else if (type == LIST) {
-        fprintf(f, "{ ");
-
-        for (auto&& o : *as_list()) {
-            o.print(f, indent);
-            fprintf(f, " ");
-        }
-
-        fprintf(f, "}");
-    }
-    else
-        assert(false);
-}
 
 list::list(parser& lex) {
     token t;
@@ -270,6 +224,59 @@ void parser::save_and_lookahead(token* p_tok) {
 
     /* set lexer to read from the saved tokens first */
     _state = TOK1;
+}
+
+
+void block::print(std::ostream& os, uint indent) const {
+    for (auto&& stmt : _vec)
+        stmt.print(os, indent);
+}
+
+
+void list::print(std::ostream& os, uint indent) const {
+    for (auto&& obj : _vec) {
+        obj.print(os, indent);
+        os << ' ';
+    }
+}
+
+
+void statement::print(std::ostream& os, uint indent) const {
+    os << std::setfill(' ') << std::setw(indent) << "";
+    _k.print(os, indent);
+    os << " = ";
+    _v.print(os, indent);
+    os << std::endl;
+}
+
+
+void object::print(std::ostream& os, uint indent) const {
+
+    if (type == STRING) {
+        if (strpbrk(as_string(), " \t\xA0\r\n\'")) // not the only time to quote, but whatever
+            os << '"' << as_string() << '"';
+        else
+            os << as_string();
+    }
+    else if (type == INTEGER)
+        os << as_integer();
+    else if (type == DATE)
+        os << as_date();
+    else if (type == DECIMAL)
+        os << as_decimal();
+    else if (type == BLOCK) {
+        os << '{' << std::endl;
+        as_block()->print(os, indent + 4);
+        os << std::setfill(' ') << std::setw(indent) << "";
+        os << '}';
+    }
+    else if (type == LIST) {
+        os << "{ ";
+        as_list()->print(os, indent);
+        os << '}';
+    }
+    else
+        assert(false && "Unhandled object type");
 }
 
 

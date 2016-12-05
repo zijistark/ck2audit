@@ -11,7 +11,6 @@
 #include "token.hpp"
 #include "error.hpp"
 
-#include <cstdio> // deprecated
 #include <vector>
 #include <memory>
 #include <string>
@@ -99,7 +98,7 @@ public:
     bool operator==(date d) const noexcept { return is_date() && as_date() == d; }
     bool operator==(fp3 f)  const noexcept { return is_number() && as_number() == f; }
 
-    void print(FILE*, uint indent = 0);
+    void print(std::ostream&, uint indent = 0) const;
 };
 
 
@@ -112,6 +111,8 @@ class list {
 public:
     list() = delete;
     list(parser&);
+
+    void print(std::ostream&, uint indent = 0) const;
 
     vec_t::size_type      size() const  { return _vec.size(); }
     vec_t::iterator       begin()       { return _vec.begin(); }
@@ -134,7 +135,7 @@ public:
     const object& key()   const noexcept { return _k; }
     const object& value() const noexcept { return _v; }
 
-    void print(FILE*, uint indent = 0);
+    void print(std::ostream&, uint indent = 0) const;
 };
 
 
@@ -148,7 +149,7 @@ public:
     block() { }
     block(parser&, bool is_root = false, bool is_save = false);
 
-    void print(FILE*, uint indent = 0);
+    void print(std::ostream&, uint indent = 0) const;
 
     vec_t::size_type      size() const  { return _vec.size(); }
     vec_t::iterator       begin()       { return _vec.begin(); }
@@ -231,3 +232,9 @@ bool looks_like_title(const char*);
 
 
 _PDX_NAMESPACE_END
+
+
+inline std::ostream& operator<<(std::ostream& os, const pdx::block& a) { a.print(os); return os; }
+inline std::ostream& operator<<(std::ostream& os, const pdx::list& a) { a.print(os); return os; }
+inline std::ostream& operator<<(std::ostream& os, const pdx::statement& a) { a.print(os); return os; }
+inline std::ostream& operator<<(std::ostream& os, const pdx::object& a) { a.print(os); return os; }

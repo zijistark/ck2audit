@@ -85,7 +85,7 @@ int main(int argc, const char** argv) {
         cout << fp << endl;
 
         pdx::parser parser(vfs["common/landed_titles/swmh_landed_titles.txt"]);
-        parser.root_block()->print(stdout);
+        cout << *parser.root_block();
     }
     catch (const exception& e) {
         cerr << "fatal: " << e.what() << endl;
