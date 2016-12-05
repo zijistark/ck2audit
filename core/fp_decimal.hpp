@@ -11,8 +11,6 @@
 
 #pragma once
 #include "pdx_common.hpp"
-
-#include "file_location.hpp"
 #include "error_queue.hpp"
 
 
@@ -42,7 +40,7 @@ public:
     static const int32_t invalid = INT32_MIN; // cannot be represented in any fp_decimal<D in 1..9>, so we'll use it as our NaN
 
 public:
-    fp_decimal(const char* src, const file_location&, error_queue&);
+    fp_decimal(char* src, const file_location&, error_queue&); // for construction while parsing
     fp_decimal(double f) : _m( f * scale + 0.5 )  {}
     fp_decimal(float f)  : _m( f * scale + 0.5f ) {}
     fp_decimal(int i)    : _m( i * scale ) {}
@@ -104,7 +102,7 @@ _PDX_NAMESPACE_BEGIN
  * DECIMAL: -?[0-9]+\.[0-9]*
  */
 template<uint D>
-fp_decimal<D>::fp_decimal(const char* src, const file_location& loc, error_queue& errq) {
+fp_decimal<D>::fp_decimal(char* src, const file_location& loc, error_queue& errors) {
 
     bool is_negative = false;
     const char* s_i = src;
@@ -114,14 +112,12 @@ fp_decimal<D>::fp_decimal(const char* src, const file_location& loc, error_queue
         ++s_i;
     }
 
-    const char* s_radix_pt = strchr(src, '.');
+    char* s_radix_pt = strchr(src, '.');
     assert( s_radix_pt && s_radix_pt != s_i ); // guaranteed by DECIMAL token
+    *s_radix_pt = '\0'; // make s_i a useful NUL-terminated string
     const char* s_f = s_radix_pt + 1;
 
-    /* [s_i,s_radix_pt) now points to integer portion, s_f points to fractional portion (also an integer).
-     *
-     * interpret integral portion first as a 64-bit integer so that we may detect values which
-     * cannot be represented. */
+    /* s_i now points to integer portion, s_f points to fractional portion (also an integer). */
 
     /* parse integral component of s_i */
     int64_t i = 0;
@@ -138,37 +134,24 @@ fp_decimal<D>::fp_decimal(const char* src, const file_location& loc, error_queue
         }
 
         if (overflow)
-            errq.enqueue(loc, "Integral value is too big in decimal number -- supported range: [%d, %d]",
-                         integral_min+0, integral_max+0);
+            errors.push(loc, "Integral value too big in decimal number (%s) -- supported range: [%d, %d]",
+                        s_i, integral_min+0, integral_max+0); // [1]
 
+        /* [1] the weird +0 syntax was required due to weirdness w/ compile-time constants that end-up being optimized out
+         * of the object code and the way std::forward works for error_queue::enqueue. without converting them to temporaries,
+         * std::forward seems to prefer directly referencing them, which is a no-no at link time since they'll be gone. */
     }
 
     /* parse fractional component s_f */
     int32_t f = 0;
     {
-        /* NOTE: the approach here, though it could be coded more dynamically like the algorithm used for
-         * the integral component, is an attempt to use static code generation for faster and simpler
-         * execution. I may very well change it to something like the dynamic algorithm above (seek to
-         * end of string, calculate length, from length calculate starting digit power-- it's always 1 above,
-         * but for the fractional component, digit powers start exponentiating possibly past the end of the
-         * string -- and then reverse-iterate over the digit characters, exponentiating as we go), but since
-         * I bothered with this bit of magic, might as well see how it performs.
-         *
-         * as for why this approach itself: it should be easy for the compiler to unroll the loop, all math
-         * re: exponentiation is rolled into precalculated compile-time constants, etc. if the approach
-         * proves especially performant, then we can use the same one for the integral component. note that
-         * we could also theoretically eliminate the inner branch and possibly a few more improvements.
-         *
-         * [totally academic IOW]
-         */
         const char* p = s_f;
 
         for (uint i = 0; i < D; ++i) {
-            int c = *p;
-            if (!c) break;
-            c -= (int)'0';
-            assert(0 <= c && c <= 9); // guaranteed by DECIMAL token
-            f += fractional_digit_powers::data[i] * c;
+            if (*p == '\0') break;
+            int d = *p - (int)'0';
+            assert(0 <= d && d <= 9); // guaranteed by DECIMAL token
+            f += fractional_digit_powers::data[i] * d;
             ++p;
         }
 
@@ -176,9 +159,9 @@ fp_decimal<D>::fp_decimal(const char* src, const file_location& loc, error_queue
         if (*p) {
             /* assuming *p is a digit (guaranteed by DECIMAL token), then:
              * data truncation due to insufficient fractional digits in representation */
-            errq.enqueue(error::priority::WARNING, loc,
-                         "Fractional value '%s' is too big in decimal number -- supported range: [0, %d]; value truncated",
-                         s_f, scale - 1);
+            errors.push(error::priority::WARNING, loc,
+                        "Fractional value too big in decimal number (%s) -- supported range: [0, %d]; value truncated",
+                        s_f, scale - 1);
         }
     }
 

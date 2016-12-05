@@ -16,19 +16,19 @@ _PDX_NAMESPACE_BEGIN
 struct error {
     /* will want to add more useful fields to this in the future than just an opaque character msg */
     enum priority : uint { NORMAL = 0, WARNING } _prio;
-    file_location _loc;
+    file_location _location;
     char _msg[256]; // probably want this dynamically-allocated w/ move-semantics but ehhh
 
     template<class... Args>
-    error(priority prio, const file_location& loc, const char* format, Args&&... args)
-        : _prio(prio), _loc(loc)
+    error(priority prio, const file_location& location, const char* format, Args&&... args)
+        : _prio(prio), _location(location)
     {
         snprintf(&_msg[0], sizeof(_msg), format, std::forward<Args>(args)...);
     }
 
     template<class... Args>
-    error(const file_location& loc, const char* format, Args&&... args)
-        : _prio(priority::NORMAL), _loc(loc)
+    error(const file_location& location, const char* format, Args&&... args)
+        : _prio(priority::NORMAL), _location(location)
     {
         snprintf(&_msg[0], sizeof(_msg), format, std::forward<Args>(args)...);
     }
@@ -40,17 +40,23 @@ class error_queue {
     vec_t _vec;
 
 public:
-    void enqueue(const error& e) { _vec.emplace_back(e); }
+    template<class... Args>
+    void push(Args&&... args) {
+        _vec.emplace_back( std::forward<Args>(args)... );
+    }
+/*
 
     template<class... Args>
-    void enqueue(error::priority prio, const file_location& loc, const char* format, Args&&... args) {
-        _vec.emplace_back(prio, loc, format, std::forward<Args>(args)...);
+    void push(error::priority prio, const file_location& location, const char* format, Args&&... args) {
+        _vec.emplace_back(prio, location, format, std::forward<Args>(args)...);
     }
 
     template<class... Args>
-    void enqueue(const file_location& loc, const char* format, Args&&... args) {
-        _vec.emplace_back(loc, format, std::forward<Args>(args)...);
+    void push(const file_location& location, const char* format, Args&&... args) {
+        _vec.emplace_back(location, format, std::forward<Args>(args)...);
     }
+
+*/
 
     vec_t::size_type      size() const  { return _vec.size(); }
     bool                  empty() const { return size() == 0; }

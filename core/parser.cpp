@@ -39,7 +39,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
         if (tok.type == token::STR)
             key = object{ lex.strdup(tok.text) };
         else if (tok.type == token::DATE)
-            key = object{ date{ tok.text } };
+            key = object{ date{ tok.text, lex.location(), lex.errors() } };
         else if (tok.type == token::INTEGER)
             key = object{ atoi(tok.text) };
         else
@@ -90,7 +90,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
         else if (tok.type == token::STR || tok.type == token::QSTR)
             val = object{ lex.strdup(tok.text) };
         else if (tok.type == token::QDATE || tok.type == token::DATE)
-            val = object{ date{ tok.text } };
+            val = object{ date{ tok.text, lex.location(), lex.errors() } };
         else if (tok.type == token::DECIMAL)
             val = object{ fp3{ tok.text, lex.location(), lex.errors() } };
         else if (tok.type == token::INTEGER)
@@ -196,12 +196,10 @@ list::list(parser& lex) {
             _vec.emplace_back( lex.strdup(t.text) );
         else if (t.type == token::INTEGER)
             _vec.emplace_back( atoi(t.text) );
-        else if (t.type == token::DECIMAL) {
+        else if (t.type == token::DECIMAL)
             _vec.emplace_back( fp3{ t.text, lex.location(), lex.errors() } );
-        }
-        else if (t.type == token::OPEN) {
+        else if (t.type == token::OPEN)
             _vec.emplace_back( std::make_unique<block>(lex) );
-        }
         else if (t.type != token::CLOSE)
             lex.unexpected_token(t);
         else

@@ -1,12 +1,11 @@
 
 #pragma once
 #include "pdx_common.hpp"
+#include "error_queue.hpp"
 
 
 _PDX_NAMESPACE_BEGIN
 
-
-class parser;
 
 #pragma pack(push, 1)
 
@@ -16,7 +15,7 @@ class date {
     uint8_t  _d;
 
 public:
-    date(char* src, const parser* p_lex = nullptr); // only for use on mutable date-strings known to be well-formed
+    date(char* src, const file_location&, error_queue&); // only for use on mutable date-strings known to be well-formed
     date(uint16_t year, uint8_t month, uint8_t day) : _y(year), _m(month), _d(day) {}
 
     uint16_t year()  const noexcept { return _y; }
@@ -38,9 +37,6 @@ public:
     bool operator!=(const date& o) const noexcept { return !(*this == o); }
     bool operator> (const date& o) const noexcept { return *this >= o && *this != o; }
     bool operator<=(const date& o) const noexcept { return *this < o || *this == o; }
-
-private:
-    void throw_bounds_error(const char* field, uint val, uint max, const parser* p_lex = nullptr);
 };
 
 #pragma pack(pop)

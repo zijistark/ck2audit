@@ -29,6 +29,7 @@ typedef fp_decimal<3> fp3;
 
 class block;
 class list;
+class parser;
 
 class object {
     enum {
