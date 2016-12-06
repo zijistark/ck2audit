@@ -1,13 +1,14 @@
+// -*- c++ -*-
 
 #pragma once
-#include "pdx_common.hpp"
+#include "pdx_common.h"
 
 #include <string>
 #include <vector>
 #include <utility>
 #include <cstdio>
 
-#include "file_location.hpp"
+#include "file_location.h"
 
 
 _PDX_NAMESPACE_BEGIN
@@ -32,6 +33,8 @@ struct error {
     {
         snprintf(&_msg[0], sizeof(_msg), format, std::forward<Args>(args)...);
     }
+
+    const char* what() const noexcept { return _msg; }
 };
 
 
@@ -41,22 +44,7 @@ class error_queue {
 
 public:
     template<class... Args>
-    void push(Args&&... args) {
-        _vec.emplace_back( std::forward<Args>(args)... );
-    }
-/*
-
-    template<class... Args>
-    void push(error::priority prio, const file_location& location, const char* format, Args&&... args) {
-        _vec.emplace_back(prio, location, format, std::forward<Args>(args)...);
-    }
-
-    template<class... Args>
-    void push(const file_location& location, const char* format, Args&&... args) {
-        _vec.emplace_back(location, format, std::forward<Args>(args)...);
-    }
-
-*/
+    void push(Args&&... args) { _vec.emplace_back( std::forward<Args>(args)... ); }
 
     vec_t::size_type      size() const  { return _vec.size(); }
     bool                  empty() const { return size() == 0; }

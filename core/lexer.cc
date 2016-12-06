@@ -1,9 +1,9 @@
 
 #include <cstdio>
-#include "lexer.hpp"
+#include "lexer.h"
 #include "scanner.h"
-#include "token.hpp"
-#include "error.hpp"
+#include "token.h"
+#include "error.h"
 
 
 _PDX_NAMESPACE_BEGIN

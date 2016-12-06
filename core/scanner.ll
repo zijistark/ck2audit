@@ -7,7 +7,7 @@
 %option nounistd never-interactive
 
 %top{
-    #include "token.hpp"
+    #include "token.h"
 }
 
 D       [0-9]

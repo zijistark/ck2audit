@@ -1,6 +1,7 @@
+// -*- c++ -*-
 
-#ifndef _PDX_COMMON_
-#define _PDX_COMMON_
+#ifndef _PDX_COMMON_H_
+#define _PDX_COMMON_H_
 
 
 #define _PDX_NAMESPACE_BEGIN namespace pdx {

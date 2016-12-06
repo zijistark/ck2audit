@@ -1,15 +1,15 @@
 // -*- c++ -*-
 
 #pragma once
-#include "pdx_common.hpp"
+#include "pdx_common.h"
 
-#include "error_queue.hpp"
-#include "cstr_pool.hpp"
-#include "lexer.hpp"
-#include "date.hpp"
-#include "fp_decimal.hpp"
-#include "token.hpp"
-#include "error.hpp"
+#include "error_queue.h"
+#include "cstr_pool.h"
+#include "lexer.h"
+#include "date.h"
+#include "fp_decimal.h"
+#include "token.h"
+#include "error.h"
 
 #include <vector>
 #include <memory>

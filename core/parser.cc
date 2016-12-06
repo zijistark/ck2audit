@@ -1,7 +1,7 @@
 
-#include "parser.hpp"
-#include "token.hpp"
-#include "error.hpp"
+#include "parser.h"
+#include "token.h"
+#include "error.h"
 
 #include <iomanip>
 #include <ctype.h>

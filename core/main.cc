@@ -1,5 +1,5 @@
 
-#include "pdx.hpp"
+#include "pdx.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -81,8 +81,14 @@ int main(int argc, const char** argv) {
         pdx::file_location loc("<null>", 0);
         char buf[32];
         strcpy(buf, "12345.1");
-        pdx::fp_decimal<3> fp(buf, loc, errors);
-        cout << fp << endl;
+        pdx::fp_decimal<3> fpA(buf, loc, errors);
+        cout << fpA << endl;
+        for (auto&& e : errors) cout << "error: " << e._msg << endl;
+
+        strcpy(buf, "123.12345");
+        pdx::fp_decimal<3> fpE(buf, loc, errors);
+        cout << fpE << endl;
+        for (auto&& e : errors) cout << "error: " << e._msg << endl;
 
         pdx::parser parser(vfs["common/landed_titles/swmh_landed_titles.txt"]);
         cout << *parser.root_block();

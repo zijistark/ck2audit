@@ -3,7 +3,7 @@
 #define yyIN_HEADER 1
 
 #line 6 "scanner.h"
-    #include "token.hpp"
+    #include "token.h"
 
 #line 9 "scanner.h"
 

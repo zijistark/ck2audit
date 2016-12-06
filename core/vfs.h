@@ -1,6 +1,7 @@
+// -*- c++ -*-
 
 #pragma once
-#include "pdx_common.hpp"
+#include "pdx_common.h"
 
 #include <vector>
 #include <string>

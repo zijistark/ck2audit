@@ -1,5 +1,5 @@
 
-#include "token.hpp"
+#include "token.h"
 
 const char* pdx::token::TYPE_MAP[] = {
     "EOF",

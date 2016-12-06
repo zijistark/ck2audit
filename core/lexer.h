@@ -1,14 +1,14 @@
 // -*- c++ -*-
 
 #pragma once
-#include "pdx_common.hpp"
+#include "pdx_common.h"
 
 #include <cstdio>
 #include <string>
 #include <memory>
 #include <boost/filesystem.hpp>
 
-#include "file_location.hpp"
+#include "file_location.h"
 
 
 _PDX_NAMESPACE_BEGIN

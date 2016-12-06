@@ -1,3 +1,4 @@
+// -*- c++ -*-
 
 /* pdx::fp_decimal -- a class to represent parsed fixed-point decimal numbers accurately (i.e., fractional base-10^-N
  * component so that any parsed decimal number can be represented exactly).
@@ -10,8 +11,8 @@
  */
 
 #pragma once
-#include "pdx_common.hpp"
-#include "error_queue.hpp"
+#include "pdx_common.h"
+#include "error_queue.h"
 
 
 _PDX_NAMESPACE_BEGIN
