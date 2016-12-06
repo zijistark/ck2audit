@@ -1,5 +1,5 @@
 
-#include "pdx.h"
+#include "pdx/pdx.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
