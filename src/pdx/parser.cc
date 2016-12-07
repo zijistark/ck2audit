@@ -65,6 +65,7 @@ block::block(parser& lex, bool is_root, bool is_save) {
             if (tok.type == token::CLOSE) {
                 /* empty block */
                 val = object{ std::make_unique<block>() };
+                _vec.emplace_back(key, val);
                 continue;
             }
             else if (tok.type == token::OPEN) {
