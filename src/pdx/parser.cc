@@ -254,7 +254,7 @@ void statement::print(std::ostream& os, uint indent) const {
 void object::print(std::ostream& os, uint indent) const {
 
     if (type == STRING) {
-        if (strpbrk(as_string(), " \t\xA0\r\n\'")) // not the only time to quote, but whatever
+        if (strpbrk(as_string(), " \t\r\n\'"))
             os << '"' << as_string() << '"';
         else
             os << as_string();

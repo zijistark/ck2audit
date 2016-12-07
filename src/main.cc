@@ -7,6 +7,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <cstdint>
 
 using namespace std;
 using namespace boost::filesystem;
@@ -22,7 +23,7 @@ int main(int argc, const char** argv) {
         po::options_description opt_spec{ "Options" };
         opt_spec.add_options()
             ("help,h", "Show help information")
-            ("config,c",
+            ("cfg,c",
                 po::value<path>(),
                 "Configuration file")
             ("game-path",
@@ -47,14 +48,14 @@ int main(int argc, const char** argv) {
         po::variables_map opt;
         po::store(po::parse_command_line(argc, argv, opt_spec), opt);
 
-        if (opt.count("config")) {
-            const string cfg_path = opt["config"].as<path>().string();
+        if (opt.count("cfg")) {
+            const string cfg_path = opt["cfg"].as<path>().string();
             std::ifstream f_cfg{ cfg_path };
 
             if (f_cfg)
                 po::store(po::parse_config_file(f_cfg, opt_spec), opt);
             else
-                throw runtime_error("failed to open config file specified with --config: " + cfg_path);
+                throw runtime_error("failed to open config file specified with --cfg: " + cfg_path);
         }
 
         if (opt.count("help")) {

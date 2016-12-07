@@ -3,8 +3,8 @@
 SConscript(['pdx/SConscript'])
 
 env = Environment()
-env.Append(CXXFLAGS="-Wall -Wextra -s -O3 --std=c++17")
+env.Append(CXXFLAGS="-Wall -Wextra -g -O2 --std=c++17")
 
 sources = ["main.cc"]
 
-env.Program('test', sources, LIBS=["boost_program_options", "pdx", "boost_filesystem", "boost_system"], LIBPATH='./pdx')
+env.Program('audit', sources, LIBS=["boost_program_options", "pdx", "boost_filesystem", "boost_system"], LIBPATH='./pdx')
